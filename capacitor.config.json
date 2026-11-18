@@ -1,8 +1,8 @@
 {
-  "appId": "io.github.arnaudchataappli.frontdacier",
-  "appName": "Front d’Acier",
+  "appId": "io.github.arnaudchataappli.killzone2000",
+  "appName": "Killzone2000",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#0b0f17"
+    "backgroundColor": "#000000"
   }
 }

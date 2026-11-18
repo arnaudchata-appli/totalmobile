@@ -1,4 +1,4 @@
-# Front d'Acier
+# Killzone2000
 
 Jeu de stratégie temps réel pour navigateur, PC et Android. Développe ton économie (minerai + énergie), construis une base et une armée, et détruis l'Architecte ennemi.
 
@@ -9,7 +9,7 @@ Jeu de stratégie temps réel pour navigateur, PC et Android. Développe ton éc
 
 - **Navigateur / mobile** : https://arnaudchata-appli.github.io/totalmobile/
   Le jeu s'installe comme une appli (« Ajouter à l'écran d'accueil » ou bouton *Installer l'appli*) et reste jouable sans connexion.
-- **Appli Android (APK)** : télécharge `FrontDAcier.apk` depuis la release [android-latest](https://github.com/arnaudchata-appli/totalmobile/releases/tag/android-latest), puis ouvre le fichier sur ton téléphone pour l'installer.
+- **Appli Android (APK)** : télécharge `Killzone2000.apk` depuis la release [android-latest](https://github.com/arnaudchata-appli/totalmobile/releases/tag/android-latest), puis ouvre le fichier sur ton téléphone pour l'installer.
 
 ## Commandes
 

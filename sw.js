@@ -1,6 +1,6 @@
 // Service worker : met le jeu en cache pour qu'il fonctionne hors ligne.
 // Stratégie : réponse immédiate depuis le cache, mise à jour en arrière-plan.
-const CACHE = 'front-dacier-v2';
+const CACHE = 'killzone2000-v3';
 const FILES = [
   './',
   './index.html',

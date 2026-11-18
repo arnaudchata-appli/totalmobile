@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#1b2230">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>Front d'Acier</title>
+<title>Killzone2000</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:system-ui,"Segoe UI",Roboto,sans-serif;color:#e8e8e8;touch-action:none}
@@ -96,7 +96,7 @@ h2{font-size:30px;letter-spacing:3px}
 
 <div id="start" class="overlay">
   <img class="logo" src="icons/icon-192.png" alt="">
-  <h1>FRONT D'ACIER</h1>
+  <h1>KILLZONE 2000</h1>
   <div class="sub">Stratégie temps réel. Développe ton économie, construis une armée et détruis l'Architecte ennemi.</div>
   <div class="card">
     <div class="ttl">SOLO CONTRE L'IA</div>
@@ -1249,7 +1249,7 @@ function mpHost() {
   let code = '';
   for (let i = 0; i < 5; i++) code += CODE_CH[Math.floor(Math.random() * CODE_CH.length)];
   mpStatus('Création de la partie…');
-  const peer = new Peer('fdacier-' + code, { debug: 0 });
+  const peer = new Peer('kz2000-' + code, { debug: 0 });
   net.peer = peer;
   peer.on('open', () => mpStatus(`Code de la partie :<br><span class="code">${code}</span><br>Donne ce code à ton adversaire et attends qu'il rejoigne…`));
   peer.on('connection', conn => {
@@ -1276,7 +1276,7 @@ function mpJoin() {
   const peer = new Peer({ debug: 0 });
   net.peer = peer;
   peer.on('open', () => {
-    const conn = peer.connect('fdacier-' + code, { reliable: true, serialization: 'json' });
+    const conn = peer.connect('kz2000-' + code, { reliable: true, serialization: 'json' });
     net.conn = conn;
     bindConn(conn);
     conn.on('open', () => mpStatus('Connecté ! Lancement…'));
