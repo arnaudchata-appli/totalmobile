@@ -56,6 +56,7 @@ h2{font-size:30px;letter-spacing:3px}
 .code{font-size:30px;letter-spacing:6px;color:#ffb02e;user-select:text;-webkit-user-select:text}
 .help{max-width:560px;text-align:left;font-size:13px;color:#ccc;background:#ffffff0d;border:1px solid #fff2;border-radius:10px;padding:12px 14px;line-height:1.5}
 .help b{color:#ffb02e}
+.ver{color:#667;font-size:11px}
 #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#000c;border:1px solid #ffb02e;border-radius:10px;padding:10px 16px;font-size:14px;z-index:20;max-width:90vw;text-align:center;pointer-events:none;transition:opacity .4s}
 @media (max-width:600px){#mini{width:112px;height:112px}.res{font-size:11px}h1{font-size:32px}}
 @media (max-height:500px){.qb{width:44px;height:38px;font-size:9px}.qb b{font-size:14px}#quick{gap:4px}#mini{width:110px;height:110px}.b{height:62px;min-width:70px}.b img{width:30px;height:30px}.b.txt{height:62px}}
@@ -115,6 +116,11 @@ h2{font-size:30px;letter-spacing:3px}
     </div>
     <div id="mpOff" class="sub">📴 Hors ligne : le multijoueur nécessite une connexion Internet. Tu peux jouer en solo contre l'IA.</div>
   </div>
+  <div class="card upd hidden">
+    <div class="ttl">🔄 NOUVELLE VERSION DISPONIBLE</div>
+    <div class="sub updTxt"></div>
+    <button class="big acc updBtn">Mettre à jour</button>
+  </div>
   <div class="row">
     <button class="big sm" id="helpBtn">Aide &amp; commandes</button>
     <button class="big sm hidden" id="installBtn">📲 Installer l'appli</button>
@@ -126,6 +132,7 @@ h2{font-size:30px;letter-spacing:3px}
     <b>Multijoueur :</b> un joueur crée la partie et donne le code à l'autre, qui le saisit puis touche « Rejoindre ».<br>
     <b>Défaite :</b> si ton Architecte meurt, la partie est perdue.
   </div>
+  <div class="ver" id="verTxt"></div>
 </div>
 
 <div id="pause" class="overlay hidden">
@@ -134,6 +141,11 @@ h2{font-size:30px;letter-spacing:3px}
     <button class="big acc" id="resume">Reprendre</button>
     <button class="big" id="soundBtn">Son : oui</button>
     <button class="big" id="restart">Quitter la partie</button>
+  </div>
+  <div class="card upd hidden">
+    <div class="ttl">🔄 NOUVELLE VERSION DISPONIBLE</div>
+    <div class="sub updTxt"></div>
+    <button class="big acc updBtn">Mettre à jour</button>
   </div>
 </div>
 
@@ -1897,6 +1909,7 @@ function toMenu() {
   ['end', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   refreshOnline();
+  checkUpdates();
 }
 
 document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => { ensureAudio(); mpCleanup(); startGame('solo', (Math.random() * 2 ** 31) | 0, parseFloat(b.dataset.diff)); }));
@@ -1920,9 +1933,65 @@ addEventListener('offline', refreshOnline);
 let installEvt = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installBtn').classList.remove('hidden'); });
 $('installBtn').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('installBtn').classList.add('hidden'); });
-if ('serviceWorker' in navigator && !window.Capacitor && location.protocol.startsWith('http')) {
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+// ====================================================================
+//  MISES À JOUR
+// ====================================================================
+// APP_VERSION est remplacé par le numéro de build lors de la publication (GitHub Actions).
+const APP_VERSION = '__APP_VERSION__';
+const IS_DEV = !/^\d+$/.test(APP_VERSION);
+const SITE_URL = 'https://arnaudchata-appli.github.io/totalmobile/';
+const IS_APP = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+let updAction = null, updToasted = false;
+$('verTxt').textContent = 'Version ' + (IS_DEV ? 'de développement' : APP_VERSION) + (IS_APP ? ' · appli Android' : '');
+function showUpdate(text, action) {
+  updAction = action;
+  document.querySelectorAll('.upd').forEach(el => el.classList.remove('hidden'));
+  document.querySelectorAll('.updTxt').forEach(el => el.textContent = text);
+  if (running && !updToasted) { updToasted = true; toast('🔄 Nouvelle version disponible : mets à jour depuis le menu ☰.'); }
 }
+document.querySelectorAll('.updBtn').forEach(b => b.addEventListener('click', () => { if (updAction) updAction(); }));
+
+// Appli Android : compare la version installée à celle publiée en ligne
+async function checkAppUpdate() {
+  if (!IS_APP || IS_DEV || !navigator.onLine) return;
+  try {
+    const r = await fetch(SITE_URL + 'version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const v = await r.json();
+    if (+v.version > +APP_VERSION && v.apk) {
+      showUpdate(`Version ${v.version} disponible (tu as la version ${APP_VERSION}). Touche le bouton pour télécharger la mise à jour, puis ouvre le fichier pour l'installer.`,
+        () => { location.href = v.apk; });
+    }
+  } catch (e) {}
+}
+
+// Version web / PWA : le service worker télécharge la nouvelle version en arrière-plan
+let swReg = null, reloading = false;
+if ('serviceWorker' in navigator && !IS_APP && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      swReg = reg;
+      const offer = w => showUpdate('Une nouvelle version du jeu a été téléchargée. Touche le bouton pour l\'installer (le jeu va redémarrer).',
+        () => w.postMessage('skipWaiting'));
+      if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        if (!w) return;
+        w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w); });
+      });
+    }).catch(() => {});
+  });
+}
+function checkUpdates() {
+  if (!navigator.onLine) return;
+  if (swReg) swReg.update().catch(() => {});
+  checkAppUpdate();
+}
+addEventListener('load', () => setTimeout(checkUpdates, 3000));
+addEventListener('online', checkUpdates);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });
+setInterval(checkUpdates, 30 * 60 * 1000);
 
 // écran d'accueil : décor
 res = [newRes(), newRes()];

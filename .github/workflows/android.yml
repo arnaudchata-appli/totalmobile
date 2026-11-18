@@ -1,4 +1,9 @@
-name: Appli Android (APK)
+name: Publier (site web + appli Android)
+
+# À chaque push sur main : construit la version N (N = numéro de ce workflow),
+# publie l'APK dans la release « android-latest », puis déploie le site sur GitHub Pages
+# avec version.json. Les applis installées comparent leur version à version.json pour
+# proposer la mise à jour.
 
 on:
   push:
@@ -7,10 +12,15 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-  group: android-apk
+  group: publish
   cancel-in-progress: true
+
+env:
+  APK_URL: https://github.com/${{ github.repository }}/releases/download/android-latest/Killzone2000.apk
 
 jobs:
   build:
@@ -30,16 +40,22 @@ jobs:
       - name: Dépendances
         run: npm install --no-audit --no-fund
 
+      - name: Fichiers web versionnés
+        run: |
+          V=${{ github.run_number }}
+          node scripts/copy-www.js
+          sed -i "s/__APP_VERSION__/$V/g" www/index.html www/sw.js
+          printf '{"version":%s,"apk":"%s","commit":"%s","date":"%s"}\n' "$V" "$APK_URL" "${{ github.sha }}" "$(date -u +%FT%TZ)" > www/version.json
+          cat www/version.json
+
       - name: Préparer le projet Android
         run: |
-          node scripts/copy-www.js
+          V=${{ github.run_number }}
           npx cap add android
           npx capacitor-assets generate --android
-          # écran en paysage
           sed -i 's/<activity/<activity android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
-          # numéro de version = numéro du build
-          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i "s/versionCode [0-9]*/versionCode $V/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
           npx cap sync android
 
       - name: Compiler l'APK
@@ -55,9 +71,11 @@ jobs:
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
             "$BT/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
-            "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --ks-key-alias "$KS_ALIAS" \
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --key-pass env:KS_PASS --ks-key-alias "$KS_ALIAS" \
               --out "$GITHUB_WORKSPACE/Killzone2000.apk" "$RUNNER_TEMP/aligned.apk"
+            rm -f "$RUNNER_TEMP/release.jks"
           else
+            echo "::warning::Aucune clé de signature : APK de debug (les mises à jour devront être installées après désinstallation)."
             ./gradlew assembleDebug --no-daemon
             cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/Killzone2000.apk"
           fi
@@ -67,12 +85,26 @@ jobs:
           name: Killzone2000-apk
           path: Killzone2000.apk
 
-      - name: Publier dans la release « android-latest »
+      - name: Publier l'APK (release « android-latest »)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
           gh release create android-latest Killzone2000.apk \
-            --title "Killzone2000 – appli Android (build ${{ github.run_number }})" \
-            --notes "APK construit automatiquement depuis le commit ${{ github.sha }}. Téléchargez Killzone2000.apk sur votre téléphone Android et ouvrez-le pour l'installer (autorisez l'installation depuis cette source si demandé)." \
+            --title "Killzone2000 – appli Android (version ${{ github.run_number }})" \
+            --notes "Version ${{ github.run_number }}, construite depuis le commit ${{ github.sha }}. Téléchargez Killzone2000.apk sur votre téléphone Android et ouvrez-le pour l'installer. Les versions suivantes sont proposées automatiquement dans l'appli." \
             --target ${{ github.sha }} --latest
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

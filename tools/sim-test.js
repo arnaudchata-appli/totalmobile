@@ -8,7 +8,7 @@ function mkCtx(online) {
   const ctxP = new Proxy({}, { get: (t, k) => (k === 'createRadialGradient' || k === 'createLinearGradient') ? () => ({ addColorStop() {} }) : (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
   const el = () => ({ getContext: () => ctxP, addEventListener() {}, classList: { add() {}, remove() {}, toggle() {} }, style: {}, dataset: {}, clientWidth: 150, getBoundingClientRect: () => ({}), toDataURL: () => 'data:', setPointerCapture() {} });
   const g = { console, Math, JSON, Set, Map, Array, Object, Promise, setTimeout: () => 0, clearTimeout() {},
-    document: { getElementById: el, createElement: el, querySelectorAll: () => [] },
+    document: { getElementById: el, createElement: el, querySelectorAll: () => [], addEventListener() {} }, setInterval: () => 0,
     innerWidth: 1200, innerHeight: 800, addEventListener() {}, performance: { now: () => 0 }, requestAnimationFrame() {},
     navigator: { onLine: online }, location: { protocol: 'file:' } };
   g.window = g; vm.createContext(g); vm.runInContext(src, g); return g;

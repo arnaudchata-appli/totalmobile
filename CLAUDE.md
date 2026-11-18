@@ -48,11 +48,19 @@ Sections dans l'ordre : constantes et données (`T` = types d'unités et de bât
 - Contrôle visuel : servir le dossier en HTTP local et faire une capture d'écran avec Chrome headless (`--screenshot`, `--virtual-time-budget`).
 - Vérification de syntaxe : extraire le `<script>` de `index.html` et lancer `node --check`.
 
+## Publication et mises à jour
+
+- Le workflow `.github/workflows/android.yml` (« Publier ») tourne à chaque push sur `main`. Le **numéro de version N = `github.run_number`** de ce workflow : ne pas renommer le fichier, sinon la numérotation repart à 1 et Android refuse d'installer une version inférieure.
+- Il copie le jeu dans `www/`, remplace `__APP_VERSION__` par N dans `index.html` et `sw.js`, écrit `www/version.json` (`{version, apk, commit, date}`), construit et signe l'APK (versionCode = N), le publie dans la release `android-latest`, puis déploie `www/` sur GitHub Pages (source Pages = « GitHub Actions »).
+- **Web/PWA** : chaque version a son propre cache (`killzone2000-N`). Le nouveau service worker s'installe en arrière-plan et attend ; le jeu affiche « Nouvelle version disponible » (écran d'accueil et menu ☰), et le bouton envoie `skipWaiting` puis recharge la page.
+- **Appli Android** : au démarrage, au retour au menu, au retour au premier plan et toutes les 30 min, l'appli lit `version.json` sur le site. Si la version est plus récente, elle propose de télécharger l'APK, qui s'installe par-dessus l'ancien (même clé de signature, versionCode supérieur).
+- En local, `APP_VERSION` vaut `__APP_VERSION__` → « Version de développement », sans vérification de mise à jour.
+
 ## Android
 
 - Le SDK Android n'est pas nécessaire en local : l'APK est construit par GitHub Actions (Node 22, Java 21, Capacitor 7). L'activité est forcée en paysage par `sed` dans le workflow.
 - `appId` : `io.github.arnaudchataappli.killzone2000`. Garder `appName` sans apostrophe droite (elle casse le `strings.xml` d'Android).
-- Signature : sans secrets, clé de debug différente à chaque build → il faut désinstaller avant de réinstaller. Pour des mises à jour directes, créer une clé (`keytool`) et ajouter les secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (le workflow les utilise automatiquement). Ne jamais committer la clé.
+- Signature : la clé permanente est **hors du dépôt**, dans `C:\Users\Arnaud\.killzone2000\` (`release.jks` + `LISEZMOI-cle.txt` avec l'alias et le mot de passe). Le workflow la lit depuis les secrets GitHub `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`. Sans ces secrets, il produit un APK de debug (signature différente à chaque fois). **Ne jamais committer la clé ; la perdre empêche toute mise à jour de l'appli installée.** Pour la copier sur un autre PC, transférer ce dossier par un moyen privé (clé USB, gestionnaire de mots de passe).
 
 ## Environnement / pièges
 
@@ -62,6 +70,6 @@ Sections dans l'ordre : constantes et données (`T` = types d'unités et de bât
 
 ## Idées en attente
 
-- Clé de signature Android permanente (mises à jour sans désinstaller).
+
 - Brouillard de guerre, unités aériennes, épaves à recycler, plus de 2 joueurs, équilibrage.
 - Test sur un vrai téléphone et en multijoueur entre deux appareils réels (pas encore fait).

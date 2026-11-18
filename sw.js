@@ -1,6 +1,7 @@
 // Service worker : met le jeu en cache pour qu'il fonctionne hors ligne.
-// Stratégie : réponse immédiate depuis le cache, mise à jour en arrière-plan.
-const CACHE = 'killzone2000-v3';
+// __APP_VERSION__ est remplacé par le numéro de build lors de la publication : chaque version
+// a donc son propre cache, et le navigateur détecte automatiquement une nouvelle version.
+const CACHE = 'killzone2000-__APP_VERSION__';
 const FILES = [
   './',
   './index.html',
@@ -12,7 +13,13 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache:'reload' contourne le cache HTTP pour être sûr de récupérer les nouveaux fichiers
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))));
+  // Pas de skipWaiting ici : le jeu propose la mise à jour et l'active à la demande du joueur.
+});
+
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -25,18 +32,21 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('/version.json')) return; // toujours depuis le réseau
   e.respondWith(
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(req, { ignoreSearch: true });
-      const network = fetch(req)
-        .then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; })
-        .catch(() => null);
-      if (cached) { e.waitUntil(network); return cached; }
-      const res = await network;
-      if (res) return res;
-      if (req.mode === 'navigate') return cache.match('./index.html');
-      return Response.error();
+      if (cached) return cached;
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      } catch (err) {
+        if (req.mode === 'navigate') return cache.match('./index.html');
+        return Response.error();
+      }
     })
   );
 });
