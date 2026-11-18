@@ -33,18 +33,21 @@ Jeu de stratégie temps réel original (inspiré du genre « Total Annihilation 
 
 ## Architecture de `index.html`
 
-Sections dans l'ordre : constantes et données (`T` = types d'unités et de bâtiments), état global, utilitaires, terrain, **graphismes** (`ART` + `spr()` : sprites pré-rendus à 3x par type, équipe et partie `hull`/`top`/`base`), son (WebAudio synthétique), entités, économie, armes et projectiles, **commandes** (`cmd()` / `applyCmd()`), IA, boucle de jeu, **réseau**, rendu, caméra et entrées, interface, démarrage.
+Sections dans l'ordre : constantes et données (`T` = types d'unités et de bâtiments), état global, utilitaires, **cartes** (`MAPS`, `genLayout`, `genTerrain`), **brouillard & radar** (`updateFog`), **graphismes** (`ART` + `spr()` : sprites pré-rendus à 3x par type, équipe et partie `hull`/`top`/`base`), son (WebAudio synthétique), entités, économie, armes et projectiles, **commandes** (`cmd()` / `applyCmd()`), IA, boucle de jeu, **réseau**, rendu, caméra et entrées, interface, démarrage.
 
-- **Équipes** : 0 = bleu (en bas à gauche), 1 = rouge (en haut à droite). `ME` = équipe locale ; `aiTeams` = équipes jouées par l'IA (n'importe quelle équipe).
+- **Équipes** : 0 = bleu (en bas / à gauche), 1 = rouge (en haut / à droite), selon la disposition de la carte (`BASES`). `ME` = équipe locale ; `aiTeams` = équipes jouées par l'IA (n'importe quelle équipe).
 - **Modes** : `solo` (simulation locale + IA équipe 1), `host` (simule, ME=0), `guest` (ne simule pas, ME=1).
 - **Toute action du joueur passe par `cmd({k:...})`**. En solo ou en hôte, elle est appliquée directement ; en invité, elle est envoyée à l'hôte, qui l'exécute via `applyCmd(c, 1)`. Pour ajouter une action, l'ajouter dans `applyCmd`.
-- **Réseau** : PeerJS, identifiant de pair `kz2000-<CODE>`. L'hôte envoie `buildSnap()` 15 fois par seconde (entités compactées + événements visuels `evq` produits par `emit()`) ; l'invité applique `applySnap()` et interpole dans `guestUpdate()`. La carte est générée à partir d'une graine commune (`setupMap(seed)`, générateur `srand`). Si l'invité se déconnecte, l'IA reprend l'équipe 1.
+- **Réseau** : PeerJS, identifiant de pair `kz2000-<CODE>`. L'hôte envoie `buildSnap()` 15 fois par seconde (entités compactées + événements visuels `evq` produits par `emit()`) ; l'invité applique `applySnap()` et interpole dans `guestUpdate()`. Le message de départ contient l'identifiant de carte et l'option brouillard (`{t:'start', map, fog}`) ; chaque carte a une graine fixe, donc les deux joueurs génèrent la même. Si l'invité se déconnecte, l'IA reprend l'équipe 1.
 - **Économie** : flux continu ; `consume()` fait avancer une construction au prorata des ressources disponibles.
+- **Cartes** : 10 définitions dans  (taille, disposition des bases //, palette, obstacles /////, nombre de gisements par camp) + « Aléatoire ». La carte est symétrique par rapport au centre. // sont donc variables. Les obstacles sont des cercles infranchissables (évitement local dans , collision dans ) ;  sort une destination d'un obstacle. Le choix de carte et du brouillard est mémorisé dans .
+- **Brouillard de guerre** : grille de =40 px ; / pour l'équipe locale, recalculés toutes les 0,15 s à partir de . Rendu par une petite texture lissée ().  = visible maintenant,  = visible ou bâtiment déjà aperçu. L'IA ne tient pas compte du brouillard (elle voit tout).
+- **Radar** : bâtiment avec  (portée) et  (énergie/s, sinon éteint : ). Les ennemis cachés dans sa portée vont dans  (échos rouges sur la carte et la minicarte).
 - **Victoire** : destruction de l'Architecte adverse (son explosion fait des dégâts de zone).
 
 ## Tester
 
-- `node tools/sim-test.js` : doit afficher « OK : synchro réseau correcte ».
+- `node tools/sim-test.js` : teste les 10 cartes, le radar, le brouillard et la synchro réseau ; doit afficher « OK : cartes, brouillard et synchro réseau corrects ».
 - Contrôle visuel : servir le dossier en HTTP local et faire une capture d'écran avec Chrome headless (`--screenshot`, `--virtual-time-budget`).
 - Vérification de syntaxe : extraire le `<script>` de `index.html` et lancer `node --check`.
 
@@ -71,5 +74,5 @@ Sections dans l'ordre : constantes et données (`T` = types d'unités et de bât
 ## Idées en attente
 
 
-- Brouillard de guerre, unités aériennes, épaves à recycler, plus de 2 joueurs, équilibrage.
+- Unités aériennes, épaves à recycler, plus de 2 joueurs, IA qui respecte le brouillard, équilibrage.
 - Test sur un vrai téléphone et en multijoueur entre deux appareils réels (pas encore fait).
