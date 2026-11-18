@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.arnaudchataappli.frontdacier",
+  "appName": "Front d’Acier",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0b0f17"
+  }
+}
