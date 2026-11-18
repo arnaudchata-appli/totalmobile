@@ -272,15 +272,22 @@ function emit(ev) { if (mode === 'host') evq.push(ev); }
 const cvs = $('game'), ctx = cvs.getContext('2d');
 const mini = $('mini'), mctx = mini.getContext('2d');
 let DPR = 1;
+let lastVW = 0, lastVH = 0;
 function resize() {
+  // garder le même point au centre de l'écran (rotation portrait / paysage)
+  const cx = lastVW ? cam.x + lastVW / cam.z / 2 : null, cy = lastVH ? cam.y + lastVH / cam.z / 2 : null;
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   cvs.width = innerWidth * DPR; cvs.height = innerHeight * DPR;
   cvs.style.width = innerWidth + 'px'; cvs.style.height = innerHeight + 'px';
   const ms = mini.clientWidth || 150;
   mini.width = ms * DPR; mini.height = ms * DPR;
+  lastVW = innerWidth; lastVH = innerHeight;
+  if (cx !== null) { cam.x = cx - innerWidth / cam.z / 2; cam.y = cy - innerHeight / cam.z / 2; }
   clampCam();
+  forceUI = true;
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 150));
 
 // ====================================================================
 //  CARTES
@@ -2181,7 +2188,7 @@ function startGame(m, mapId, diff) {
     spawn('architecte', 0, BASES[0].x, BASES[0].y);
     spawn('architecte', 1, BASES[1].x, BASES[1].y);
   }
-  cam.z = innerWidth < 700 ? 0.9 : 1;
+  cam.z = Math.min(innerWidth, innerHeight) < 500 ? 0.75 : innerWidth < 700 ? 0.9 : 1;
   centerOn(BASES[ME]);
   const mine = ents.find(e => e.team === ME);
   if (mine) sel = new Set([mine]);

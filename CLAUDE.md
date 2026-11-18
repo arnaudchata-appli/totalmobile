@@ -20,7 +20,7 @@ Jeu de stratégie temps réel original (inspiré du genre « Total Annihilation 
 |---|---|
 | `index.html` | Tout le jeu : données, simulation, IA, réseau, rendu, interface |
 | `sw.js` | Service worker (cache hors ligne). **Incrémenter `CACHE`** quand on change la liste des fichiers ou pour forcer une mise à jour |
-| `manifest.webmanifest` | Manifeste PWA (nom, icônes, paysage, plein écran) |
+| `manifest.webmanifest` | Manifeste PWA (nom, icônes, toutes orientations, plein écran) |
 | `lib/peerjs.min.js` | PeerJS 1.5.4 embarqué (WebRTC), pour ne pas dépendre d'un CDN |
 | `icons/` | Icônes web (192, 512, maskable, SVG) |
 | `assets/` | Sources des icônes et écrans de démarrage Android (utilisées par `@capacitor/assets`) |
@@ -61,7 +61,7 @@ Sections dans l'ordre : constantes et données (`T` = types d'unités et de bât
 
 ## Android
 
-- Le SDK Android n'est pas nécessaire en local : l'APK est construit par GitHub Actions (Node 22, Java 21, Capacitor 7). L'activité est forcée en paysage par `sed` dans le workflow.
+- Le SDK Android n'est pas nécessaire en local : l'APK est construit par GitHub Actions (Node 22, Java 21, Capacitor 7). L'activité est en rotation libre (`screenOrientation="fullUser"`, portrait et paysage, respecte le verrouillage du téléphone), réglée par `sed` dans le workflow.
 - `appId` : `io.github.arnaudchataappli.killzone2000`. Garder `appName` sans apostrophe droite (elle casse le `strings.xml` d'Android).
 - Signature : la clé permanente est **hors du dépôt**, dans `C:\Users\Arnaud\.killzone2000\` (`release.jks` + `LISEZMOI-cle.txt` avec l'alias et le mot de passe). Le workflow la lit depuis les secrets GitHub `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`. Sans ces secrets, il produit un APK de debug (signature différente à chaque fois). **Ne jamais committer la clé ; la perdre empêche toute mise à jour de l'appli installée.** Pour la copier sur un autre PC, transférer ce dossier par un moyen privé (clé USB, gestionnaire de mots de passe).
 

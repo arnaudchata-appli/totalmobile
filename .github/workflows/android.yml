@@ -53,7 +53,8 @@ jobs:
           V=${{ github.run_number }}
           npx cap add android
           npx capacitor-assets generate --android
-          sed -i 's/<activity/<activity android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
+          # rotation libre (portrait et paysage), en respectant le verrouillage de rotation du téléphone
+          sed -i 's/<activity/<activity android:screenOrientation="fullUser"/' android/app/src/main/AndroidManifest.xml
           sed -i "s/versionCode [0-9]*/versionCode $V/" android/app/build.gradle
           sed -i "s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
           npx cap sync android
