@@ -1,8 +1,8 @@
 {
-  "name": "killzone2000",
+  "name": "totalkill2000",
   "version": "1.0.0",
   "private": true,
-  "description": "Killzone2000 - jeu de stratégie temps réel (web, PWA et Android)",
+  "description": "TotalKill2000 - jeu de stratégie temps réel (web, PWA et Android)",
   "scripts": {
     "build:www": "node scripts/copy-www.js",
     "android:sync": "npm run build:www && npx cap sync android"

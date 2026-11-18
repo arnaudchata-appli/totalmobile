@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APK_URL: https://github.com/${{ github.repository }}/releases/download/android-latest/Killzone2000.apk
+  APK_URL: https://github.com/${{ github.repository }}/releases/download/android-latest/TotalKill2000.apk
 
 jobs:
   build:
@@ -73,27 +73,27 @@ jobs:
             BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
             "$BT/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
             "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --key-pass env:KS_PASS --ks-key-alias "$KS_ALIAS" \
-              --out "$GITHUB_WORKSPACE/Killzone2000.apk" "$RUNNER_TEMP/aligned.apk"
+              --out "$GITHUB_WORKSPACE/TotalKill2000.apk" "$RUNNER_TEMP/aligned.apk"
             rm -f "$RUNNER_TEMP/release.jks"
           else
             echo "::warning::Aucune clé de signature : APK de debug (les mises à jour devront être installées après désinstallation)."
             ./gradlew assembleDebug --no-daemon
-            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/Killzone2000.apk"
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TotalKill2000.apk"
           fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Killzone2000-apk
-          path: Killzone2000.apk
+          name: TotalKill2000-apk
+          path: TotalKill2000.apk
 
       - name: Publier l'APK (release « android-latest »)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest Killzone2000.apk \
-            --title "Killzone2000 – appli Android (version ${{ github.run_number }})" \
-            --notes "Version ${{ github.run_number }}, construite depuis le commit ${{ github.sha }}. Téléchargez Killzone2000.apk sur votre téléphone Android et ouvrez-le pour l'installer. Les versions suivantes sont proposées automatiquement dans l'appli." \
+          gh release create android-latest TotalKill2000.apk \
+            --title "TotalKill2000 – appli Android (version ${{ github.run_number }})" \
+            --notes "Version ${{ github.run_number }}, construite depuis le commit ${{ github.sha }}. Téléchargez TotalKill2000.apk sur votre téléphone Android et ouvrez-le pour l'installer. Les versions suivantes sont proposées automatiquement dans l'appli." \
             --target ${{ github.sha }} --latest
 
       - uses: actions/upload-pages-artifact@v3

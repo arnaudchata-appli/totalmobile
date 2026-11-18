@@ -1,7 +1,7 @@
 // Service worker : met le jeu en cache pour qu'il fonctionne hors ligne.
 // __APP_VERSION__ est remplacé par le numéro de build lors de la publication : chaque version
 // a donc son propre cache, et le navigateur détecte automatiquement une nouvelle version.
-const CACHE = 'killzone2000-__APP_VERSION__';
+const CACHE = 'totalkill2000-__APP_VERSION__';
 const FILES = [
   './',
   './index.html',

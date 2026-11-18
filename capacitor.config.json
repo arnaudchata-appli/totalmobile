@@ -1,6 +1,6 @@
 {
-  "appId": "io.github.arnaudchataappli.killzone2000",
-  "appName": "Killzone2000",
+  "appId": "io.github.arnaudchataappli.totalkill2000",
+  "appName": "TotalKill2000",
   "webDir": "www",
   "android": {
     "backgroundColor": "#000000"
