@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Front d'Acier</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:system-ui,"Segoe UI",Roboto,sans-serif;color:#e8e8e8;touch-action:none}
+#game{position:fixed;inset:0;display:block}
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:12px;padding:6px 10px;padding-top:max(6px,env(safe-area-inset-top));background:linear-gradient(#000d,#0000);pointer-events:none;font-size:12px;z-index:2}
+.res{flex:1;max-width:280px}
+.res .lbl{display:flex;justify-content:space-between;gap:6px;text-shadow:0 1px 2px #000;white-space:nowrap}
+.res .lbl span:last-child{color:#bbb}
+.bar{height:7px;background:#0009;border:1px solid #fff3;border-radius:4px;overflow:hidden;margin-top:2px}
+.bar i{display:block;height:100%;width:0;transition:width .2s}
+#clock{font-variant-numeric:tabular-nums;color:#ccc;align-self:center;text-shadow:0 1px 2px #000}
+#mini{position:fixed;right:8px;top:calc(max(6px,env(safe-area-inset-top)) + 40px);width:150px;height:150px;border:1px solid #fff5;background:#000;border-radius:4px;touch-action:none;z-index:2}
+#quick{position:fixed;left:6px;top:calc(max(6px,env(safe-area-inset-top)) + 42px);display:flex;flex-direction:column;gap:6px;z-index:2}
+.qb{width:50px;height:46px;border-radius:10px;background:#1b2230e6;border:1px solid #fff3;color:#fff;font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;line-height:1.15}
+.qb b{font-size:17px}
+.qb.on{background:#c2731de6;border-color:#ffb02e}
+#panel{position:fixed;left:0;right:0;bottom:0;padding:6px;padding-bottom:max(6px,env(safe-area-inset-bottom));background:linear-gradient(#0000,#000d 35%);z-index:2}
+#info{font-size:12px;margin:0 4px 5px;min-height:15px;text-shadow:0 1px 2px #000}
+#btns{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 2px}
+.b{flex:0 0 auto;min-width:80px;height:54px;padding:4px 9px;border-radius:10px;background:#1b2230ee;border:1px solid #fff3;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;position:relative;cursor:pointer}
+.b small{font-size:10px;color:#aab;margin-top:2px;white-space:nowrap}
+.b.on{background:#c2731d;border-color:#ffb02e}
+.b.red{background:#5a1e1e}
+.b .n{position:absolute;top:-7px;right:-5px;background:#ffb02e;color:#000;border-radius:9px;padding:0 6px;font-size:11px;font-weight:bold}
+.overlay{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:10;text-align:center;padding:20px;gap:14px;overflow:auto}
+.hidden{display:none!important}
+h1{font-size:42px;letter-spacing:5px;color:#ffb02e;text-shadow:0 0 24px #c2731d}
+h2{font-size:30px;letter-spacing:3px}
+.sub{color:#bbb;max-width:520px;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.big{padding:14px 22px;font-size:16px;border-radius:12px;background:#1b2230;border:1px solid #fff4;color:#fff;cursor:pointer;min-width:120px}
+.big:hover{background:#2a3446}
+.big.acc{background:#c2731d;border-color:#ffb02e}
+.help{max-width:560px;text-align:left;font-size:13px;color:#ccc;background:#ffffff0d;border:1px solid #fff2;border-radius:10px;padding:12px 14px;line-height:1.5}
+.help b{color:#ffb02e}
+@media (max-width:600px){#mini{width:112px;height:112px}.res{font-size:11px}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="top">
+  <div class="res">
+    <div class="lbl"><span>⛏ Minerai <b id="mTxt">0</b></span><span id="mRate"></span></div>
+    <div class="bar"><i id="mBar" style="background:#b8c4d0"></i></div>
+  </div>
+  <div class="res">
+    <div class="lbl"><span>⚡ Énergie <b id="eTxt">0</b></span><span id="eRate"></span></div>
+    <div class="bar"><i id="eBar" style="background:#ffd23f"></i></div>
+  </div>
+  <div id="clock">0:00</div>
+</div>
+
+<canvas id="mini"></canvas>
+
+<div id="quick">
+  <div class="qb" data-a="cmdr"><b>♛</b>Archi</div>
+  <div class="qb" data-a="army"><b>⚔</b>Armée</div>
+  <div class="qb" data-a="builders"><b>🔧</b>Constr.</div>
+  <div class="qb" data-a="box" id="qbBox"><b>▢</b>Boîte</div>
+  <div class="qb" data-a="desel"><b>✕</b>Aucun</div>
+  <div class="qb" data-a="menu"><b>⏸</b>Menu</div>
+</div>
+
+<div id="panel">
+  <div id="info"></div>
+  <div id="btns"></div>
+</div>
+
+<div id="start" class="overlay">
+  <h1>FRONT D'ACIER</h1>
+  <div class="sub">Stratégie temps réel. Développe ton économie, construis une armée et détruis l'Architecte ennemi avant qu'il ne détruise le tien.</div>
+  <div class="row">
+    <button class="big" data-diff="0.75">Facile</button>
+    <button class="big acc" data-diff="1.15">Normal</button>
+    <button class="big" data-diff="1.6">Difficile</button>
+  </div>
+  <div class="help">
+    <b>Économie :</b> les ressources arrivent en flux continu. Construis des <b>Extracteurs</b> sur les gisements (taches métalliques) et des <b>Générateurs</b> pour l'énergie. Une construction avance seulement si tu as de quoi la payer.<br>
+    <b>Mobile :</b> touche une unité pour la sélectionner, touche le sol pour la déplacer, touche un ennemi pour l'attaquer. Glisse pour déplacer la caméra, pince pour zoomer. Active <b>▢ Boîte</b> pour sélectionner une zone. Double-touche = toutes les unités du même type.<br>
+    <b>PC :</b> clic gauche / glisser = sélection, clic droit = ordre, molette = zoom, clic molette ou flèches = caméra, <b>A</b> = mode attaque, <b>S</b> = stop, <b>Maj</b> = file d'ordres, <b>Échap</b> = annuler.<br>
+    <b>Défaite :</b> si ton Architecte meurt, la partie est perdue. Protège-le !
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <h2>PAUSE</h2>
+  <div class="row">
+    <button class="big acc" id="resume">Reprendre</button>
+    <button class="big" id="soundBtn">Son : oui</button>
+    <button class="big" id="restart">Nouvelle partie</button>
+  </div>
+</div>
+
+<div id="end" class="overlay hidden">
+  <h2 id="endTitle">VICTOIRE</h2>
+  <div class="sub" id="endSub"></div>
+  <button class="big acc" id="again">Rejouer</button>
+</div>
+
+<script>
+'use strict';
+// ====================================================================
+//  CONSTANTES & DONNÉES
+// ====================================================================
+const TAU = Math.PI * 2;
+const W = 3200, H = 3200;
+const BUILD_RANGE = 70;
+const ZMIN = 0.3, ZMAX = 2.2;
+const COL = [
+  { main: '#3d8bff', dark: '#1c4a99', light: '#a8ccff' },
+  { main: '#ff4b3d', dark: '#99231c', light: '#ffb0a6' }
+];
+const BASIC_BUILDS = ['extracteur', 'generateur', 'usine', 'tourelle', 'stockage'];
+
+const T = {
+  // ----- unités -----
+  architecte: { name: 'Architecte', unit: true, hp: 3000, r: 16, speed: 42, turn: 3.5, bp: 1.2,
+    builds: BASIC_BUILDS, weapon: { type: 'laser', dmg: 28, range: 170, reload: 0.7 },
+    prodM: 1.5, prodE: 15, storM: 1000, storE: 2000 },
+  constructeur: { name: 'Constructeur', unit: true, hp: 450, r: 11, speed: 62, turn: 4, bp: 0.8,
+    builds: [...BASIC_BUILDS, 'canon'], cost: [110, 600], time: 9 },
+  eclaireur: { name: 'Éclaireur', unit: true, hp: 200, r: 9, speed: 125, turn: 6,
+    weapon: { type: 'bullet', dmg: 9, range: 150, reload: 0.35, speed: 520 }, cost: [45, 250], time: 5 },
+  char: { name: 'Char', unit: true, hp: 700, r: 13, speed: 58, turn: 3,
+    weapon: { type: 'bullet', dmg: 45, range: 190, reload: 1.3, speed: 440 }, cost: [140, 700], time: 11 },
+  artillerie: { name: 'Artillerie', unit: true, hp: 320, r: 13, speed: 40, turn: 2.5,
+    weapon: { type: 'shell', dmg: 85, splash: 55, range: 400, minRange: 60, reload: 3.6, speed: 270 },
+    cost: [200, 1100], time: 15 },
+  // ----- bâtiments -----
+  extracteur: { name: 'Extracteur', building: true, hp: 350, r: 18, cost: [50, 400], time: 7, prodM: 2.2,
+    desc: '+2.2 minerai/s, sur gisement' },
+  generateur: { name: 'Générateur', building: true, hp: 400, r: 22, cost: [140, 0], time: 9, prodE: 20,
+    desc: '+20 énergie/s' },
+  stockage: { name: 'Stockage', building: true, hp: 600, r: 20, cost: [120, 500], time: 8, storM: 1500, storE: 3000,
+    desc: 'Augmente les réserves' },
+  usine: { name: 'Usine', building: true, hp: 2600, r: 38, cost: [380, 1200], time: 22, bp: 1,
+    makes: ['constructeur', 'eclaireur', 'char', 'artillerie'], desc: 'Produit des unités' },
+  tourelle: { name: 'Tourelle', building: true, hp: 1000, r: 15, cost: [110, 800], time: 10,
+    weapon: { type: 'laser', dmg: 32, range: 240, reload: 0.6 }, desc: 'Défense laser' },
+  canon: { name: 'Canon lourd', building: true, hp: 1400, r: 20, cost: [350, 2500], time: 20,
+    weapon: { type: 'shell', dmg: 140, splash: 70, range: 640, minRange: 100, reload: 4.5, speed: 330 },
+    desc: 'Artillerie longue portée' }
+};
+
+// ====================================================================
+//  ÉTAT
+// ====================================================================
+let ents = [], projs = [], beams = [], parts = [], markers = [], deposits = [];
+let sel = new Set();
+let nid = 0, gameT = 0, running = false, paused = false, over = false;
+let placing = null, placeFirst = true, amoveMode = false, boxMode = false;
+let aiMult = 1.15;
+let res = [];
+let blds = [];
+let endTimer = 0;
+const cam = { x: 0, y: 0, z: 1 };
+let mouseW = { x: 0, y: 0 }, hasMouse = false;
+
+// ====================================================================
+//  UTILITAIRES
+// ====================================================================
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+const alive = e => e && !e.dead;
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+const rotateToward = (cur, tgt, max) => { const d = angDiff(tgt, cur); return Math.abs(d) <= max ? tgt : cur + Math.sign(d) * max; };
+const fmtT = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+// ====================================================================
+//  CANVAS & TERRAIN
+// ====================================================================
+const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
+let DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cvs.width = innerWidth * DPR; cvs.height = innerHeight * DPR;
+  cvs.style.width = innerWidth + 'px'; cvs.style.height = innerHeight + 'px';
+  const ms = mini.clientWidth || 150;
+  mini.width = ms * DPR; mini.height = ms * DPR;
+  clampCam();
+}
+addEventListener('resize', resize);
+
+const TS = 0.5;
+const terr = document.createElement('canvas');
+terr.width = W * TS; terr.height = H * TS;
+const tg = terr.getContext('2d');
+
+function genTerrain() {
+  const g = tg, tw = terr.width, th = terr.height;
+  g.fillStyle = '#3e4632'; g.fillRect(0, 0, tw, th);
+  const cols = ['#4a5138', '#363d2c', '#52553d', '#3a3a30', '#454b36', '#4d4a3a'];
+  for (let i = 0; i < 600; i++) {
+    const x = Math.random() * tw, y = Math.random() * th, r = 20 + Math.random() * 130, c = pick(cols);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, c + 'cc'); gr.addColorStop(1, c + '00');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  for (let i = 0; i < 6000; i++) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,220,0.06)';
+    g.fillRect(Math.random() * tw, Math.random() * th, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+  for (let i = 0; i < 45; i++) {
+    const x = Math.random() * tw, y = Math.random() * th, r = 8 + Math.random() * 30;
+    g.fillStyle = 'rgba(20,20,15,0.35)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(200,200,170,0.12)'; g.lineWidth = 2; g.beginPath(); g.arc(x - 1, y - 1, r, Math.PI * 0.9, Math.PI * 1.9); g.stroke();
+  }
+  // gisements
+  for (const dp of deposits) {
+    const x = dp.x * TS, y = dp.y * TS;
+    g.fillStyle = 'rgba(25,25,30,0.8)'; g.beginPath(); g.arc(x, y, 13, 0, TAU); g.fill();
+    for (let k = 0; k < 9; k++) {
+      const a = Math.random() * TAU, rr = Math.random() * 9;
+      g.fillStyle = pick(['#9aa7b5', '#c9d3dd', '#6f7b88', '#b0bcc8']);
+      g.beginPath(); g.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 1.5 + Math.random() * 2.2, 0, TAU); g.fill();
+    }
+    g.strokeStyle = 'rgba(180,200,220,0.25)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 14, 0, TAU); g.stroke();
+  }
+}
+function scorch(x, y, r) {
+  const gx = x * TS, gy = y * TS, gr = r * TS;
+  const g = tg.createRadialGradient(gx, gy, 0, gx, gy, gr);
+  g.addColorStop(0, 'rgba(10,8,5,0.55)'); g.addColorStop(1, 'rgba(10,8,5,0)');
+  tg.fillStyle = g; tg.beginPath(); tg.arc(gx, gy, gr, 0, TAU); tg.fill();
+}
+
+function genDeposits() {
+  deposits = [];
+  const add = (x, y) => { deposits.push({ x, y }); deposits.push({ x: W - x, y: H - y }); };
+  const bx = 500, by = H - 500;
+  for (const [ox, oy] of [[-170, -130], [180, -100], [-130, 180], [160, 170], [20, -260]]) add(bx + ox, by + oy);
+  let tries = 0;
+  while (deposits.length < 44 && tries++ < 3000) {
+    const x = rnd(200, W - 200), y = rnd(200, H - 200);
+    if (Math.hypot(x - bx, y - by) < 420 || Math.hypot(x - (W - bx), y - (H - by)) < 420) continue;
+    if (Math.hypot(x - (W - x), y - (H - y)) < 250) continue;
+    if (deposits.some(d => Math.hypot(d.x - x, d.y - y) < 240 || Math.hypot(d.x - (W - x), d.y - (H - y)) < 240)) continue;
+    add(x, y);
+  }
+}
+const depTaken = dp => ents.some(e => !e.dead && e.type === 'extracteur' && Math.hypot(e.x - dp.x, e.y - dp.y) < 6);
+function depositNear(x, y, r) {
+  let best = null, bd = r;
+  for (const dp of deposits) { const d = Math.hypot(dp.x - x, dp.y - y); if (d < bd) { bd = d; best = dp; } }
+  return best;
+}
+
+// ====================================================================
+//  SON (WebAudio synthétique)
+// ====================================================================
+let AC = null, soundOn = true, noiseBuf = null;
+const sfxT = {};
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.6, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { AC = null; }
+}
+function sfx(kind, x, y) {
+  if (!AC || !soundOn) return;
+  const now = AC.currentTime;
+  if (sfxT[kind] && now - sfxT[kind] < (kind === 'boom' ? 0.09 : 0.05)) return;
+  let vol = 0.22;
+  if (x !== undefined) {
+    const cx = cam.x + innerWidth / cam.z / 2, cy = cam.y + innerHeight / cam.z / 2;
+    vol *= Math.max(0, 1 - Math.hypot(x - cx, y - cy) / (1300 / Math.min(1, cam.z)));
+  }
+  if (vol < 0.01) return;
+  sfxT[kind] = now;
+  const gain = AC.createGain(); gain.connect(AC.destination);
+  if (kind === 'laser' || kind === 'done' || kind === 'click') {
+    const o = AC.createOscillator();
+    o.type = kind === 'laser' ? 'square' : 'sine';
+    const f0 = kind === 'laser' ? 1100 : kind === 'done' ? 520 : 700, f1 = kind === 'laser' ? 280 : kind === 'done' ? 880 : 700;
+    const dur = kind === 'laser' ? 0.08 : kind === 'done' ? 0.18 : 0.04;
+    o.frequency.setValueAtTime(f0, now); o.frequency.exponentialRampToValueAtTime(f1, now + dur);
+    gain.gain.setValueAtTime(vol * (kind === 'laser' ? 0.25 : 0.5), now); gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(gain); o.start(now); o.stop(now + dur + 0.02);
+  } else {
+    const s = AC.createBufferSource(); s.buffer = noiseBuf;
+    const f = AC.createBiquadFilter(); f.type = 'lowpass';
+    const dur = kind === 'boom' ? 0.5 : 0.07;
+    f.frequency.setValueAtTime(kind === 'boom' ? 600 : 2200, now);
+    f.frequency.exponentialRampToValueAtTime(kind === 'boom' ? 60 : 500, now + dur);
+    gain.gain.setValueAtTime(vol * (kind === 'boom' ? 1 : 0.35), now); gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    s.connect(f); f.connect(gain); s.start(now); s.stop(now + dur);
+  }
+}
+
+// ====================================================================
+//  ENTITÉS
+// ====================================================================
+function spawn(type, team, x, y, built = 1) {
+  const d = T[type];
+  const a = team === 0 ? -Math.PI / 2 : Math.PI / 2;
+  const e = {
+    id: ++nid, type, d, team, x, y, px: x, py: y, vx: 0, vy: 0, r: d.r,
+    hp: built >= 1 ? d.hp : Math.max(1, d.hp * 0.02), built,
+    angle: a, turret: a, cd: Math.random() * 0.5, scanT: Math.random() * 0.3, tgt: null,
+    orders: [], queue: [], prog: 0, repeat: false, rally: null, working: false,
+    beamTo: null, hitT: 0, flash: 0, spin: Math.random() * TAU, aiAtk: false
+  };
+  ents.push(e);
+  return e;
+}
+
+function newRes() { return { m: 1000, e: 1000, maxM: 1000, maxE: 2000, accM: 0, accE: 0, accUM: 0, accUE: 0, rateM: 0, rateE: 0, useM: 0, useE: 0, statT: 0, stallM: false, stallE: false }; }
+
+// Consomme les ressources pour avancer une construction. Retourne la fraction de progression obtenue.
+function consume(team, d, bp, dt) {
+  const R = res[team];
+  const df = bp * dt / d.time;
+  const nM = d.cost[0] * df, nE = d.cost[1] * df;
+  let ratio = 1;
+  if (nM > 0) ratio = Math.min(ratio, R.m / nM);
+  if (nE > 0) ratio = Math.min(ratio, R.e / nE);
+  ratio = clamp(ratio, 0, 1);
+  if (nM > 0 && R.m < nM) R.stallM = true;
+  if (nE > 0 && R.e < nE) R.stallE = true;
+  R.m -= nM * ratio; R.e -= nE * ratio;
+  R.accUM += nM * ratio; R.accUE += nE * ratio;
+  return df * ratio;
+}
+
+function economy(dt) {
+  for (const R of res) { R.maxM = 0; R.maxE = 0; R.stallM = false; R.stallE = false; }
+  for (const e of ents) {
+    if (e.dead || e.built < 1) continue;
+    const d = e.d, R = res[e.team], mult = e.team === 1 ? aiMult : 1;
+    if (d.storM) { R.maxM += d.storM; R.maxE += d.storE; }
+    if (d.prodM) { const v = d.prodM * mult * dt; R.m += v; R.accM += v; }
+    if (d.prodE) { const v = d.prodE * mult * dt; R.e += v; R.accE += v; }
+  }
+  for (const R of res) {
+    R.maxM = Math.max(R.maxM, 200); R.maxE = Math.max(R.maxE, 400);
+    R.m = Math.min(R.m, R.maxM); R.e = Math.min(R.e, R.maxE);
+    R.statT += dt;
+    if (R.statT >= 1) {
+      R.rateM = R.accM / R.statT; R.rateE = R.accE / R.statT;
+      R.useM = R.accUM / R.statT; R.useE = R.accUE / R.statT;
+      R.accM = R.accE = R.accUM = R.accUE = 0; R.statT = 0;
+    }
+  }
+}
+
+function validPlace(bt, x, y, ignore) {
+  const d = T[bt];
+  if (x < d.r + 10 || y < d.r + 10 || x > W - d.r - 10 || y > H - d.r - 10) return false;
+  for (const o of ents) if (!o.dead && o.d.building && Math.hypot(o.x - x, o.y - y) < o.r + d.r + 6) return false;
+  for (const u of ents) {
+    if (u.dead || !u.orders.length) continue;
+    for (const p of u.orders) if (p !== ignore && p.type === 'place' && !p.site && Math.hypot(p.x - x, p.y - y) < T[p.bt].r + d.r + 6) return false;
+  }
+  if (bt === 'extracteur') {
+    const dp = depositNear(x, y, 8);
+    if (!dp || depTaken(dp)) return false;
+  } else {
+    for (const dp of deposits) if (Math.hypot(dp.x - x, dp.y - y) < d.r + 16) return false;
+  }
+  return true;
+}
+
+function finishBuild(b) {
+  b.built = 1;
+  if (b.team === 0) sfx('done', b.x, b.y);
+  if (b.d.makes && !b.rally) b.rally = { x: b.x, y: b.y + b.r + 80 };
+}
+
+function findEnemy(e, range, minR) {
+  let best = null, bs = 1e9;
+  for (const o of ents) {
+    if (o.dead || o.team === e.team) continue;
+    const dd = dist(e, o) - o.r;
+    if (dd > range || dd < minR) continue;
+    let s = dd + (o.d.building ? 160 : 0) + (o.built < 1 ? 80 : 0) - (o.d.weapon ? 60 : 0);
+    if (s < bs) { bs = s; best = o; }
+  }
+  return best;
+}
+
+function updateWeapon(e, dt) {
+  const w = e.d.weapon, o = e.orders[0];
+  e.cd -= dt; e.scanT -= dt;
+  const scanR = w.range + (o && o.type === 'amove' ? 160 : 0);
+  if (e.tgt && (!alive(e.tgt) || dist(e, e.tgt) - e.tgt.r > scanR + 20)) e.tgt = null;
+  if (e.scanT <= 0) { e.scanT = 0.3; const n = findEnemy(e, scanR, w.minRange || 0); if (n) e.tgt = n; }
+  const t = (o && o.type === 'attack' && alive(o.target)) ? o.target : e.tgt;
+  if (t) {
+    const want = Math.atan2(t.y - e.y, t.x - e.x);
+    e.turret = rotateToward(e.turret, want, 6 * dt);
+    const dd = dist(e, t) - t.r;
+    if (e.cd <= 0 && dd <= w.range && dd >= (w.minRange || 0) && Math.abs(angDiff(want, e.turret)) < 0.2) fire(e, t);
+  } else if (e.d.unit) {
+    e.turret = rotateToward(e.turret, e.angle, 3 * dt);
+  }
+}
+
+function fire(e, t) {
+  const w = e.d.weapon;
+  e.cd = w.reload * rnd(0.95, 1.05); e.flash = 0.08;
+  const mx = e.x + Math.cos(e.turret) * (e.r + 5), my = e.y + Math.sin(e.turret) * (e.r + 5);
+  if (w.type === 'laser') {
+    damage(t, w.dmg, e);
+    beams.push({ x1: mx, y1: my, x2: t.x + rnd(-4, 4), y2: t.y + rnd(-4, 4), t: 0.12, max: 0.12, team: e.team });
+    sfx('laser', e.x, e.y);
+  } else {
+    let tx = t.x, ty = t.y;
+    const tt = Math.hypot(tx - mx, ty - my) / w.speed;
+    if (t.d.unit) { tx += t.vx * tt; ty += t.vy * tt; }
+    if (w.type === 'shell') { tx += rnd(-18, 18); ty += rnd(-18, 18); }
+    const L = Math.hypot(tx - mx, ty - my) || 1;
+    projs.push({ x: mx, y: my, sx: mx, sy: my, tx, ty, dx: (tx - mx) / L, dy: (ty - my) / L, L, trav: 0, sp: w.speed,
+      dmg: w.dmg, splash: w.splash || 0, team: e.team, type: w.type, src: e, h: 0 });
+    sfx(w.type === 'shell' ? 'boom' : 'shot', e.x, e.y);
+  }
+}
+
+function damage(t, dmg, src) {
+  if (t.dead) return;
+  t.hp -= dmg; t.hitT = 0.12;
+  if (t.hp <= 0) { kill(t); return; }
+  if (t.team === 1 && t.d.unit && t.d.weapon && !t.orders.length && alive(src) && src.team !== t.team)
+    t.orders = [{ type: 'attack', target: src }];
+}
+
+function kill(t) {
+  if (t.dead) return;
+  t.dead = true;
+  const size = t.d.building ? t.r * 1.4 : t.r * 1.2;
+  explode(t.x, t.y, size);
+  scorch(t.x, t.y, t.r * 2.2);
+  if (t.type === 'architecte') {
+    explode(t.x, t.y, 90);
+    scorch(t.x, t.y, 220);
+    for (const o of ents) if (!o.dead && o !== t) {
+      const dd = dist(o, t);
+      if (dd < 240) damage(o, 900 * (1 - dd / 240) + 100, null);
+    }
+  }
+}
+
+function explode(x, y, size) {
+  const n = Math.min(60, Math.floor(size * 1.3));
+  for (let i = 0; i < n && parts.length < 1800; i++) {
+    const a = Math.random() * TAU, sp = rnd(0.2, 1) * size * 5;
+    const life = rnd(0.3, 0.9);
+    parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life,
+      c: pick(['#ffe066', '#ff9933', '#ff5522', '#ffcc33', '#888888']), s: rnd(1.5, 3.5) * Math.max(1, size / 16) });
+  }
+  parts.push({ x, y, ring: true, life: 0.35, max: 0.35, s: size * 2.2 });
+  sfx('boom', x, y);
+}
+
+// ---------------------- unités ----------------------
+function steer(e, tx, ty, dt) {
+  let dx = tx - e.x, dy = ty - e.y;
+  const L = Math.hypot(dx, dy);
+  if (L < 1.5) return;
+  dx /= L; dy /= L;
+  let ax = 0, ay = 0;
+  for (const b of blds) {
+    const bx = b.x - e.x, by = b.y - e.y, bl = Math.hypot(bx, by), need = b.r + e.r + 10;
+    if (bl > need + 70 || bl > L + b.r) continue;
+    const ahead = bx * dx + by * dy;
+    if (ahead < 0) continue;
+    const lat = bx * -dy + by * dx;
+    if (Math.abs(lat) < need) {
+      const s = lat >= 0 ? 1 : -1, wgt = (need - Math.abs(lat)) / need * 1.6;
+      ax += dy * s * wgt; ay += -dx * s * wgt;
+    }
+  }
+  const vx = dx + ax, vy = dy + ay;
+  const want = Math.atan2(vy, vx);
+  e.angle = rotateToward(e.angle, want, e.d.turn * dt);
+  const f = Math.max(0.2, Math.cos(angDiff(want, e.angle)));
+  const step = Math.min(e.d.speed * f * dt, L);
+  e.x += Math.cos(e.angle) * step; e.y += Math.sin(e.angle) * step;
+}
+
+function updateUnit(e, dt) {
+  const o = e.orders[0];
+  let goal = null;
+  if (o) {
+    switch (o.type) {
+      case 'move':
+        goal = o;
+        if (d2(e, o) < 100) e.orders.shift();
+        break;
+      case 'amove':
+        if (e.tgt && alive(e.tgt) && e.d.weapon) {
+          if (dist(e, e.tgt) - e.tgt.r > e.d.weapon.range - 10) goal = e.tgt;
+        } else { goal = o; if (d2(e, o) < 400) e.orders.shift(); }
+        break;
+      case 'attack': {
+        if (!alive(o.target) || !e.d.weapon) { e.orders.shift(); break; }
+        if (dist(e, o.target) - o.target.r > e.d.weapon.range - 12) goal = o.target;
+        break;
+      }
+      case 'build': {
+        const b = o.target;
+        if (!alive(b) || b.team !== e.team || (b.built >= 1 && b.hp >= b.d.hp)) { e.orders.shift(); break; }
+        if (dist(e, b) > b.r + e.r + BUILD_RANGE) { goal = b; break; }
+        e.angle = rotateToward(e.angle, Math.atan2(b.y - e.y, b.x - e.x), e.d.turn * dt);
+        e.beamTo = b;
+        if (b.built < 1) {
+          const inc = consume(e.team, b.d, e.d.bp, dt);
+          b.built = Math.min(1, b.built + inc);
+          b.hp = Math.min(b.d.hp, b.hp + b.d.hp * inc);
+          if (b.built >= 1) finishBuild(b);
+        } else {
+          b.hp = Math.min(b.d.hp, b.hp + b.d.hp * e.d.bp * dt / b.d.time * 0.6);
+        }
+        break;
+      }
+      case 'place': {
+        if (alive(o.site)) { e.orders[0] = { type: 'build', target: o.site }; break; }
+        if (o.site) { e.orders.shift(); break; }
+        if (dist(e, o) > T[o.bt].r + e.r + BUILD_RANGE * 0.85) { goal = o; break; }
+        if (validPlace(o.bt, o.x, o.y, o)) {
+          const b = spawn(o.bt, e.team, o.x, o.y, 0);
+          o.site = b;
+          e.orders[0] = { type: 'build', target: b };
+        } else e.orders.shift();
+        break;
+      }
+    }
+  }
+  if (goal) steer(e, goal.x, goal.y, dt);
+}
+
+function updateFactory(e, dt) {
+  e.working = false;
+  if (!e.queue.length) { e.prog = 0; return; }
+  const ut = e.queue[0];
+  const inc = consume(e.team, T[ut], e.d.bp, dt);
+  e.working = inc > 0;
+  e.prog += inc;
+  if (e.prog >= 1) {
+    e.prog = 0;
+    e.queue.shift();
+    if (e.repeat) e.queue.push(ut);
+    const u = spawn(ut, e.team, e.x + rnd(-6, 6), e.y + e.r + 12);
+    u.angle = u.turret = Math.PI / 2;
+    const rp = e.rally || { x: e.x, y: e.y + e.r + 80 };
+    u.orders = [{ type: 'move', x: rp.x + rnd(-35, 35), y: rp.y + rnd(-35, 35) }];
+    if (e.team === 0) sfx('done', e.x, e.y);
+  }
+}
+
+function collide() {
+  const us = ents.filter(e => !e.dead && e.d.unit);
+  for (let i = 0; i < us.length; i++) {
+    const a = us[i];
+    for (let j = i + 1; j < us.length; j++) {
+      const b = us[j];
+      const dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r;
+      if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
+      const dd = Math.hypot(dx, dy);
+      if (dd >= rr) continue;
+      const nx = dd > 0.01 ? dx / dd : Math.random() - 0.5, ny = dd > 0.01 ? dy / dd : Math.random() - 0.5;
+      const push = (rr - dd) * 0.5;
+      a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+    }
+    for (const b of blds) {
+      const dx = a.x - b.x, dy = a.y - b.y, rr = a.r + b.r, dd = Math.hypot(dx, dy);
+      if (dd < rr) {
+        const nx = dd > 0.01 ? dx / dd : 0, ny = dd > 0.01 ? dy / dd : 1;
+        a.x = b.x + nx * rr; a.y = b.y + ny * rr;
+      }
+    }
+    a.x = clamp(a.x, a.r, W - a.r); a.y = clamp(a.y, a.r, H - a.r);
+  }
+}
+
+function updateProjs(dt) {
+  for (const p of projs) {
+    p.trav += p.sp * dt;
+    if (p.trav >= p.L) { p.done = true; impact(p); continue; }
+    p.x = p.sx + p.dx * p.trav; p.y = p.sy + p.dy * p.trav;
+    if (p.type === 'shell') p.h = Math.sin(Math.PI * p.trav / p.L) * Math.min(160, p.L * 0.3);
+  }
+  projs = projs.filter(p => !p.done);
+}
+function impact(p) {
+  if (p.splash) {
+    for (const o of ents) {
+      if (o.dead || o.team === p.team) continue;
+      const dd = Math.hypot(o.x - p.tx, o.y - p.ty) - o.r;
+      if (dd < p.splash) damage(o, p.dmg * (1 - 0.6 * Math.max(0, dd) / p.splash), p.src);
+    }
+    explode(p.tx, p.ty, p.splash * 0.5);
+    scorch(p.tx, p.ty, p.splash * 0.8);
+  } else {
+    let hit = null, bd = 1e9;
+    for (const o of ents) {
+      if (o.dead || o.team === p.team) continue;
+      const dd = Math.hypot(o.x - p.tx, o.y - p.ty);
+      if (dd < o.r + 4 && dd < bd) { bd = dd; hit = o; }
+    }
+    if (hit) damage(hit, p.dmg, p.src);
+    for (let i = 0; i < 5; i++) parts.push({ x: p.tx, y: p.ty, vx: rnd(-80, 80), vy: rnd(-80, 80), life: 0.25, max: 0.25, c: '#ffdd88', s: 1.6 });
+  }
+}
+
+// ====================================================================
+//  IA
+// ====================================================================
+const ai = { think: 0, wave: 5, base: { x: W - 500, y: 500 }, gather: { x: W - 760, y: 760 } };
+
+function aiFindSpot(bt, cx, cy) {
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * TAU, r = 70 + i * 9 + Math.random() * 50;
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    if (validPlace(bt, x, y, null)) return { x, y };
+  }
+  return null;
+}
+function freeDeposit(from, maxD) {
+  let best = null, bd = maxD;
+  for (const dp of deposits) {
+    const dd = Math.hypot(dp.x - from.x, dp.y - from.y);
+    if (dd >= bd || depTaken(dp)) continue;
+    if (!validPlace('extracteur', dp.x, dp.y, null)) continue;
+    // éviter les gisements trop proches de la base adverse
+    if (Math.hypot(dp.x - 500, dp.y - (H - 500)) < 700) continue;
+    bd = dd; best = dp;
+  }
+  return best;
+}
+
+function aiUpdate(dt) {
+  ai.think -= dt;
+  if (ai.think > 0) return;
+  ai.think = 0.8;
+  const R = res[1];
+  const mine = [], enemy = [];
+  for (const e of ents) if (!e.dead) (e.team === 1 ? mine : enemy).push(e);
+  const cmdr = mine.find(e => e.type === 'architecte');
+  if (!cmdr) return;
+  const cnt = {};
+  for (const e of mine) cnt[e.type] = (cnt[e.type] || 0) + 1;
+  const pend = {};
+  for (const u of mine) for (const o of u.orders) if (o.type === 'place' && !o.site) pend[o.bt] = (pend[o.bt] || 0) + 1;
+  const n = t => (cnt[t] || 0) + (pend[t] || 0);
+  let prodM = 0, prodE = 0;
+  for (const e of mine) if (e.built >= 1) { prodM += e.d.prodM || 0; prodE += e.d.prodE || 0; }
+  prodE += (pend.generateur || 0) * 20;
+  prodM += (pend.extracteur || 0) * 2.2;
+  const unfinished = mine.filter(e => e.d.building && e.built < 1);
+  const damaged = mine.filter(e => e.d.building && e.built >= 1 && e.hp < e.d.hp * 0.6);
+
+  // --- constructeurs ---
+  for (const b of mine) {
+    if (!b.d.builds || b.orders.length) continue;
+    const isC = b.type === 'architecte';
+    const uf = unfinished.find(u => dist(u, b) < (isC ? 700 : 1200));
+    if (uf) { b.orders = [{ type: 'build', target: uf }]; continue; }
+    const dm = damaged.find(u => dist(u, b) < 600);
+    if (dm) { b.orders = [{ type: 'build', target: dm }]; continue; }
+    let bt = null, spot = null;
+    if (n('usine') === 0 && n('extracteur') >= 2) bt = 'usine';
+    else if (prodE < prodM * 8 + 12) bt = 'generateur';
+    else {
+      const dp = freeDeposit(b, isC ? 650 : 2400);
+      if (dp && n('extracteur') < 16) { bt = 'extracteur'; spot = { x: dp.x, y: dp.y }; }
+    }
+    if (!bt) {
+      if (n('usine') === 0) bt = 'usine';
+      else if (n('tourelle') < Math.min(9, 2 + Math.floor(gameT / 90))) bt = 'tourelle';
+      else if (n('usine') < 2 && R.m > 450 && gameT > 200) bt = 'usine';
+      else if (n('usine') < 3 && R.m > 800 && gameT > 520) bt = 'usine';
+      else if (n('canon') < 1 + Math.floor(gameT / 600) && gameT > 420 && R.m > 300 && b.type === 'constructeur') bt = 'canon';
+      else if (n('stockage') < 2 && R.m > R.maxM * 0.85) bt = 'stockage';
+      else if (prodE < prodM * 10 && R.e < R.maxE * 0.8) bt = 'generateur';
+    }
+    if (!bt) continue;
+    if (!spot) {
+      const c = (bt === 'tourelle' || bt === 'canon') ? { x: ai.base.x - 230, y: ai.base.y + 230 } : ai.base;
+      spot = aiFindSpot(bt, c.x, c.y);
+    }
+    if (spot) b.orders = [{ type: 'place', bt, x: spot.x, y: spot.y }];
+  }
+
+  // --- usines ---
+  for (const f of mine) {
+    if (f.type !== 'usine' || f.built < 1) continue;
+    f.rally = ai.gather;
+    if (f.queue.length) continue;
+    let queued = 0;
+    for (const g of mine) if (g.type === 'usine') queued += g.queue.filter(q => q === 'constructeur').length;
+    if ((cnt.constructeur || 0) + queued < Math.min(4, 1 + Math.floor(gameT / 140))) f.queue.push('constructeur');
+    else {
+      const r = Math.random();
+      f.queue.push(r < 0.25 ? 'eclaireur' : r < 0.72 ? 'char' : 'artillerie');
+    }
+  }
+
+  // --- armée ---
+  const army = mine.filter(e => e.d.unit && e.d.weapon && e.type !== 'architecte');
+  const home = army.filter(u => !u.aiAtk);
+  const threat = enemy.find(e => e.d.unit && Math.hypot(e.x - ai.base.x, e.y - ai.base.y) < 850);
+  if (threat) {
+    for (const u of home) if (!u.orders.length || u.orders[0].type === 'move') u.orders = [{ type: 'amove', x: threat.x, y: threat.y }];
+  } else {
+    for (const u of home) if (!u.orders.length && dist(u, ai.gather) > 260)
+      u.orders = [{ type: 'move', x: ai.gather.x + rnd(-90, 90), y: ai.gather.y + rnd(-90, 90) }];
+  }
+  if (!threat && home.length >= ai.wave && enemy.length && gameT > 300 / aiMult) {
+    // cible : bâtiment joueur le plus proche de la base IA
+    let tgt = null, bd = 1e12;
+    for (const e of enemy) { const dd = d2(e, ai.base) + (e.d.building ? 0 : 4e5); if (dd < bd) { bd = dd; tgt = e; } }
+    if (tgt) {
+      for (const u of home) { u.aiAtk = true; u.orders = [{ type: 'amove', x: tgt.x + rnd(-60, 60), y: tgt.y + rnd(-60, 60) }]; }
+      ai.wave = Math.min(30, ai.wave + 3);
+    }
+  }
+  for (const u of army) {
+    if (!u.aiAtk || u.orders.length) continue;
+    let tgt = null, bd = 1e12;
+    for (const e of enemy) { const dd = d2(e, u); if (dd < bd) { bd = dd; tgt = e; } }
+    if (tgt) u.orders = [{ type: 'amove', x: tgt.x, y: tgt.y }];
+  }
+}
+
+// ====================================================================
+//  BOUCLE DE JEU
+// ====================================================================
+function update(dt) {
+  gameT += dt;
+  economy(dt);
+  blds = ents.filter(e => !e.dead && e.d.building);
+  for (const e of ents) {
+    if (e.dead) continue;
+    e.px = e.x; e.py = e.y; e.beamTo = null;
+    if (e.hitT > 0) e.hitT -= dt;
+    if (e.flash > 0) e.flash -= dt;
+    if (e.built < 1) continue;
+    if (e.d.weapon) updateWeapon(e, dt);
+    if (e.d.unit) updateUnit(e, dt);
+    if (e.d.makes) updateFactory(e, dt);
+    if (e.type === 'extracteur') e.spin += dt * 3;
+  }
+  collide();
+  for (const e of ents) if (e.d.unit) { e.vx = (e.x - e.px) / dt; e.vy = (e.y - e.py) / dt; }
+  updateProjs(dt);
+  for (const b of beams) b.t -= dt;
+  beams = beams.filter(b => b.t > 0);
+  for (const p of parts) { p.life -= dt; if (!p.ring) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.93; p.vy *= 0.93; } }
+  parts = parts.filter(p => p.life > 0);
+  for (const m of markers) m.t -= dt;
+  markers = markers.filter(m => m.t > 0);
+  aiUpdate(dt);
+  if (ents.some(e => e.dead)) {
+    ents = ents.filter(e => !e.dead);
+    for (const e of [...sel]) if (e.dead) sel.delete(e);
+  }
+  endTimer -= dt;
+  if (endTimer <= 0) { endTimer = 0.5; checkEnd(); }
+}
+
+function checkEnd() {
+  const p = ents.some(e => e.team === 0 && e.type === 'architecte');
+  const a = ents.some(e => e.team === 1 && e.type === 'architecte');
+  if (p && a) return;
+  over = true;
+  setTimeout(() => {
+    document.getElementById('endTitle').textContent = p ? 'VICTOIRE' : 'DÉFAITE';
+    document.getElementById('endTitle').style.color = p ? '#7dff8a' : '#ff6b5e';
+    document.getElementById('endSub').textContent = (p ? "L'Architecte ennemi a été détruit" : 'Ton Architecte a été détruit') + ' après ' + fmtT(gameT) + '.';
+    document.getElementById('end').classList.remove('hidden');
+  }, 1800);
+}
+
+// ====================================================================
+//  RENDU
+// ====================================================================
+function poly(n, r, rot = 0) {
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) { const a = rot + i * TAU / n; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+  ctx.closePath();
+}
+function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawUnit(e) {
+  const c = COL[e.team], r = e.r;
+  ctx.save(); ctx.translate(e.x, e.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.05, r * 0.9, 0, 0, TAU); ctx.fill();
+  ctx.save(); ctx.rotate(e.angle);
+  switch (e.type) {
+    case 'architecte':
+      ctx.fillStyle = '#222'; rrect(-r * 0.9, -r * 1.05, r * 1.8, r * 0.5, 3); ctx.fill(); rrect(-r * 0.9, r * 0.55, r * 1.8, r * 0.5, 3); ctx.fill();
+      ctx.fillStyle = c.main; poly(6, r, Math.PI / 6); ctx.fill();
+      ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2.5; poly(6, r * 0.72, Math.PI / 6); ctx.stroke();
+      ctx.fillStyle = c.dark; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, TAU); ctx.fill();
+      break;
+    case 'constructeur':
+      ctx.fillStyle = '#222'; ctx.fillRect(-r, -r * 0.95, r * 2, r * 0.45); ctx.fillRect(-r, r * 0.5, r * 2, r * 0.45);
+      ctx.fillStyle = c.main; rrect(-r * 0.9, -r * 0.65, r * 1.8, r * 1.3, 3); ctx.fill();
+      ctx.fillStyle = '#ffc93a'; ctx.fillRect(-r * 0.3, -r * 0.25, r * 1.4, r * 0.5);
+      ctx.fillStyle = c.dark; ctx.fillRect(-r * 0.8, -r * 0.4, r * 0.5, r * 0.8);
+      break;
+    case 'eclaireur':
+      ctx.fillStyle = c.main; ctx.beginPath(); ctx.moveTo(r * 1.3, 0); ctx.lineTo(-r, -r * 0.9); ctx.lineTo(-r * 0.5, 0); ctx.lineTo(-r, r * 0.9); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = c.light; ctx.lineWidth = 1; ctx.stroke();
+      break;
+    case 'char':
+      ctx.fillStyle = '#1d1d1d'; ctx.fillRect(-r * 1.1, -r * 0.95, r * 2.2, r * 0.5); ctx.fillRect(-r * 1.1, r * 0.45, r * 2.2, r * 0.5);
+      ctx.fillStyle = c.main; ctx.fillRect(-r * 0.95, -r * 0.6, r * 1.9, r * 1.2);
+      ctx.fillStyle = c.dark; ctx.fillRect(r * 0.6, -r * 0.5, r * 0.3, r);
+      break;
+    case 'artillerie':
+      ctx.fillStyle = '#1d1d1d'; ctx.fillRect(-r * 1.1, -r * 0.9, r * 2.2, r * 0.45); ctx.fillRect(-r * 1.1, r * 0.45, r * 2.2, r * 0.45);
+      ctx.fillStyle = c.main; ctx.fillRect(-r, -r * 0.55, r * 2, r * 1.1);
+      ctx.fillStyle = c.dark; ctx.fillRect(-r * 0.9, -r * 0.35, r * 0.6, r * 0.7);
+      break;
+  }
+  ctx.restore();
+  // tourelle
+  if (e.type !== 'constructeur') {
+    ctx.save(); ctx.rotate(e.turret);
+    if (e.type === 'char') {
+      ctx.fillStyle = '#ccc'; ctx.fillRect(0, -2, r * 1.35, 4);
+      ctx.fillStyle = c.light; ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, TAU); ctx.fill();
+      ctx.strokeStyle = c.dark; ctx.lineWidth = 1.5; ctx.stroke();
+    } else if (e.type === 'artillerie') {
+      ctx.fillStyle = '#bbb'; ctx.fillRect(0, -2.5, r * 1.8, 5);
+      ctx.fillStyle = c.light; ctx.fillRect(-r * 0.35, -r * 0.4, r * 0.8, r * 0.8);
+    } else if (e.type === 'eclaireur') {
+      ctx.fillStyle = '#ddd'; ctx.fillRect(0, -1, r * 1.1, 2);
+    } else if (e.type === 'architecte') {
+      ctx.fillStyle = '#eee'; ctx.fillRect(0, -2, r * 1.1, 4);
+      ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, TAU); ctx.fill();
+    }
+    if (e.flash > 0) { ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(r * 1.5, 0, 4, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  if (e.hitT > 0) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawBuildingShape(type, team, r, e) {
+  const c = COL[team];
+  switch (type) {
+    case 'extracteur':
+      ctx.fillStyle = '#4a4f58'; poly(8, r, Math.PI / 8); ctx.fill();
+      ctx.strokeStyle = c.main; ctx.lineWidth = 3; poly(8, r - 1.5, Math.PI / 8); ctx.stroke();
+      ctx.fillStyle = '#23262b'; ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, TAU); ctx.fill();
+      ctx.save(); ctx.rotate(e ? e.spin : 0); ctx.fillStyle = '#b8c4d0';
+      for (let i = 0; i < 3; i++) { ctx.rotate(TAU / 3); ctx.fillRect(-2, 0, 4, r * 0.58); }
+      ctx.restore();
+      ctx.fillStyle = c.light; ctx.beginPath(); ctx.arc(0, 0, 3, 0, TAU); ctx.fill();
+      break;
+    case 'generateur': {
+      const s = r * 0.85;
+      ctx.fillStyle = c.dark; rrect(-s, -s, s * 2, s * 2, 3); ctx.fill();
+      ctx.fillStyle = '#1b2a4a';
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) ctx.fillRect(-s + 3 + i * s, -s + 3 + j * s, s - 5, s - 5);
+      ctx.strokeStyle = 'rgba(140,190,255,0.5)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const x = -s + 3 + i * s, y = -s + 3 + j * s; ctx.beginPath(); ctx.moveTo(x, y + (s - 5) / 2); ctx.lineTo(x + s - 5, y + (s - 5) / 2); ctx.moveTo(x + (s - 5) / 2, y); ctx.lineTo(x + (s - 5) / 2, y + s - 5); ctx.stroke(); }
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, TAU); ctx.fill();
+      break;
+    }
+    case 'stockage': {
+      const s = r * 0.85;
+      ctx.fillStyle = '#4a4f58'; rrect(-s, -s, s * 2, s * 2, 4); ctx.fill();
+      ctx.strokeStyle = c.main; ctx.lineWidth = 2.5; rrect(-s, -s, s * 2, s * 2, 4); ctx.stroke();
+      ctx.fillStyle = '#9aa7b5'; ctx.beginPath(); ctx.arc(-s * 0.45, 0, s * 0.42, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(s * 0.45, 0, s * 0.42, 0, TAU); ctx.fill();
+      break;
+    }
+    case 'usine': {
+      const w = r * 1.6, h = r * 1.5;
+      ctx.fillStyle = '#4a4f58'; rrect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8, 5); ctx.fill();
+      ctx.fillStyle = c.dark; rrect(-w / 2, -h / 2, w, h, 4); ctx.fill();
+      ctx.fillStyle = c.main;
+      for (let i = 0; i < 4; i++) ctx.fillRect(-w / 2 + 5, -h / 2 + 5 + i * 9, w - 10, 5);
+      ctx.fillStyle = '#222'; ctx.fillRect(-w * 0.3, h / 2 - 12, w * 0.6, 16);
+      ctx.fillStyle = '#ffc93a';
+      for (let i = 0; i < 6; i++) ctx.fillRect(-w * 0.3 + i * w * 0.1 + 1, h / 2 + 1, w * 0.05, 3);
+      const on = e && e.working && Math.floor(gameT * 4) % 2;
+      ctx.fillStyle = on ? '#7dff8a' : '#334'; ctx.beginPath(); ctx.arc(w / 2 - 7, -h / 2 + 7, 3.5, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-w / 2 + 7, -h / 2 + 7, 3.5, 0, TAU); ctx.fill();
+      break;
+    }
+    case 'tourelle':
+      ctx.fillStyle = '#4a4f58'; poly(8, r * 1.15, Math.PI / 8); ctx.fill();
+      ctx.fillStyle = c.main; ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, TAU); ctx.fill();
+      ctx.save(); ctx.rotate(e ? e.turret : -Math.PI / 2);
+      ctx.fillStyle = '#ddd'; ctx.fillRect(0, -4, r * 1.3, 3); ctx.fillRect(0, 1, r * 1.3, 3);
+      ctx.fillStyle = c.light; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, TAU); ctx.fill();
+      if (e && e.flash > 0) { ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(r * 1.4, 0, 4, 0, TAU); ctx.fill(); }
+      ctx.restore();
+      break;
+    case 'canon':
+      ctx.fillStyle = '#3d424a'; poly(8, r * 1.1, Math.PI / 8); ctx.fill();
+      ctx.strokeStyle = c.main; ctx.lineWidth = 3; poly(8, r * 0.95, Math.PI / 8); ctx.stroke();
+      ctx.save(); ctx.rotate(e ? e.turret : -Math.PI / 2);
+      ctx.fillStyle = '#aaa'; ctx.fillRect(0, -3.5, r * 2, 7);
+      ctx.fillStyle = '#777'; ctx.fillRect(r * 1.7, -5, r * 0.4, 10);
+      ctx.fillStyle = c.dark; ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, TAU); ctx.fill();
+      ctx.restore();
+      break;
+  }
+}
+
+function drawBuilding(e) {
+  ctx.save(); ctx.translate(e.x, e.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(4, 5, e.r * 1.05, 0, TAU); ctx.fill();
+  if (e.built < 1) ctx.globalAlpha = 0.3 + 0.5 * e.built;
+  drawBuildingShape(e.type, e.team, e.r, e);
+  ctx.globalAlpha = 1;
+  if (e.built < 1) {
+    ctx.strokeStyle = 'rgba(125,255,160,0.85)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.strokeRect(-e.r, -e.r, e.r * 2, e.r * 2); ctx.setLineDash([]);
+    const y = e.r - e.built * e.r * 2;
+    ctx.strokeStyle = 'rgba(125,255,160,0.9)'; ctx.beginPath(); ctx.moveTo(-e.r, y); ctx.lineTo(e.r, y); ctx.stroke();
+  }
+  if (e.hitT > 0) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawGhost(bt, x, y, ok) {
+  ctx.save(); ctx.translate(x, y); ctx.globalAlpha = 0.45;
+  drawBuildingShape(bt, 0, T[bt].r, null);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = ok ? 'rgba(125,255,140,0.9)' : 'rgba(255,90,80,0.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, T[bt].r + 4, 0, TAU); ctx.stroke();
+  if (T[bt].weapon) { ctx.setLineDash([6, 6]); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(0, 0, T[bt].weapon.range, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.restore();
+}
+
+function hpBar(e) {
+  const w = Math.max(24, e.r * 2), x = e.x - w / 2, y = e.y - e.r - 9;
+  const f = clamp(e.hp / e.d.hp, 0, 1);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 1, y - 1, w + 2, 5);
+  ctx.fillStyle = f > 0.6 ? '#5f5' : f > 0.3 ? '#fd4' : '#f54'; ctx.fillRect(x, y, w * f, 3);
+  if (e.d.makes && e.queue.length) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 1, y + 5, w + 2, 4);
+    ctx.fillStyle = '#ffb02e'; ctx.fillRect(x, y + 6, w * e.prog, 2);
+  }
+}
+
+function render() {
+  const vw = innerWidth / cam.z, vh = innerHeight / cam.z;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0d0f0b'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  const k = DPR * cam.z;
+  ctx.setTransform(k, 0, 0, k, -cam.x * k, -cam.y * k);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(terr, 0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 3 / cam.z; ctx.strokeRect(0, 0, W, H);
+
+  const vis = e => e.x + e.r * 3 > cam.x && e.x - e.r * 3 < cam.x + vw && e.y + e.r * 3 > cam.y && e.y - e.r * 3 < cam.y + vh;
+
+  // portée des armes sélectionnées
+  for (const e of sel) if (e.d.weapon && e.team === 0 && sel.size < 6) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1 / cam.z; ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.d.weapon.range, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // cercles de sélection
+  for (const e of sel) {
+    ctx.strokeStyle = e.team === 0 ? '#7dff8a' : '#ff8070'; ctx.lineWidth = 2 / cam.z;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 5, 0, TAU); ctx.stroke();
+  }
+  for (const e of ents) if (e.d.building && vis(e)) drawBuilding(e);
+
+  // fantômes de constructions en attente (joueur)
+  const seen = new Set();
+  for (const u of ents) {
+    if (u.team !== 0 || !u.orders.length) continue;
+    for (const o of u.orders) if (o.type === 'place' && !o.site && !seen.has(o)) { seen.add(o); drawGhost(o.bt, o.x, o.y, true); }
+  }
+  // lignes d'ordres des unités sélectionnées
+  ctx.lineWidth = 1.2 / cam.z;
+  for (const e of sel) {
+    if (e.team !== 0) continue;
+    let px = e.x, py = e.y;
+    for (const o of e.orders) {
+      const t = o.target || o;
+      ctx.strokeStyle = o.type === 'attack' || o.type === 'amove' ? 'rgba(255,110,90,0.5)' : o.type === 'build' || o.type === 'place' ? 'rgba(125,255,160,0.45)' : 'rgba(125,255,140,0.45)';
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(t.x, t.y); ctx.stroke();
+      px = t.x; py = t.y;
+    }
+    if (e.d.makes && e.rally) {
+      ctx.strokeStyle = 'rgba(255,200,80,0.5)'; ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.rally.x, e.rally.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#ffb02e'; ctx.fillRect(e.rally.x, e.rally.y - 14, 10, 7); ctx.fillRect(e.rally.x - 1, e.rally.y - 14, 2, 14);
+    }
+  }
+
+  // rayons de construction
+  ctx.lineWidth = 2 / cam.z; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -gameT * 40;
+  for (const e of ents) if (e.beamTo) {
+    ctx.strokeStyle = 'rgba(125,255,160,0.8)';
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.beamTo.x + rnd(-e.beamTo.r, e.beamTo.r) * 0.5, e.beamTo.y + rnd(-e.beamTo.r, e.beamTo.r) * 0.5); ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+
+  for (const e of ents) if (e.d.unit && vis(e)) drawUnit(e);
+
+  // projectiles
+  for (const p of projs) {
+    if (p.type === 'shell') {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffcf66'; ctx.beginPath(); ctx.arc(p.x, p.y - p.h, 3.5, 0, TAU); ctx.fill();
+    } else {
+      ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.dx * 9, p.y - p.dy * 9); ctx.stroke();
+    }
+  }
+  // lasers
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of beams) {
+    const a = b.t / b.max;
+    ctx.strokeStyle = b.team === 0 ? `rgba(120,190,255,${a * 0.5})` : `rgba(255,120,100,${a * 0.5})`; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  // particules
+  for (const p of parts) {
+    const a = p.life / p.max;
+    if (p.ring) {
+      ctx.strokeStyle = `rgba(255,220,150,${a * 0.8})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (1 - a) + 2, 0, TAU); ctx.stroke();
+    } else {
+      ctx.globalAlpha = a; ctx.fillStyle = p.c; ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  // marqueurs d'ordres
+  for (const m of markers) {
+    ctx.strokeStyle = m.c; ctx.globalAlpha = m.t / 0.6; ctx.lineWidth = 2 / cam.z;
+    ctx.beginPath(); ctx.arc(m.x, m.y, 4 + (0.6 - m.t) * 30, 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // barres de vie
+  for (const e of ents) if (vis(e) && (sel.has(e) || e.hp < e.d.hp - 1 || (e.d.makes && e.queue.length && e.team === 0))) hpBar(e);
+
+  // fantôme de placement (souris)
+  if (placing && hasMouse) {
+    let x = mouseW.x, y = mouseW.y;
+    if (placing === 'extracteur') { const dp = depositNear(x, y, 45); if (dp) { x = dp.x; y = dp.y; } }
+    drawGhost(placing, x, y, validPlace(placing, x, y, null));
+  }
+
+  // boîte de sélection
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (drag) {
+    ctx.strokeStyle = '#7dff8a'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(125,255,140,0.08)';
+    const x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1), w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+    ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  }
+}
+
+// ---------------------- minicarte ----------------------
+const miniBg = document.createElement('canvas');
+function buildMiniBg() { miniBg.width = 300; miniBg.height = 300; miniBg.getContext('2d').drawImage(terr, 0, 0, 300, 300); }
+function drawMini() {
+  const s = mini.width;
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+  mctx.drawImage(miniBg, 0, 0, s, s);
+  const k = s / W;
+  mctx.fillStyle = '#9aa7b5';
+  for (const dp of deposits) mctx.fillRect(dp.x * k - 1, dp.y * k - 1, 2, 2);
+  for (const e of ents) {
+    mctx.fillStyle = e.team === 0 ? (e.type === 'architecte' ? '#fff' : COL[0].light) : (e.type === 'architecte' ? '#ffe' : COL[1].main);
+    const z = e.d.building ? Math.max(3, e.r * k * 2) : (e.type === 'architecte' ? 4 : 2.5);
+    mctx.fillRect(e.x * k - z / 2, e.y * k - z / 2, z, z);
+  }
+  mctx.strokeStyle = '#fff'; mctx.lineWidth = 1;
+  mctx.strokeRect(cam.x * k, cam.y * k, innerWidth / cam.z * k, innerHeight / cam.z * k);
+}
+
+// ====================================================================
+//  CAMÉRA & ENTRÉES
+// ====================================================================
+function clampCam() {
+  const vw = innerWidth / cam.z, vh = innerHeight / cam.z;
+  cam.x = vw > W + 400 ? (W - vw) / 2 : clamp(cam.x, -200, W - vw + 200);
+  cam.y = vh > H + 400 ? (H - vh) / 2 : clamp(cam.y, -200, H - vh + 250);
+}
+function centerOn(p) { cam.x = p.x - innerWidth / cam.z / 2; cam.y = p.y - innerHeight / cam.z / 2; clampCam(); }
+const s2w = (sx, sy) => ({ x: cam.x + sx / cam.z, y: cam.y + sy / cam.z });
+
+function entAt(x, y, touch) {
+  const tol = (touch ? 14 : 5) / cam.z;
+  let best = null, bd = 1e9;
+  for (const e of ents) {
+    const dd = Math.hypot(e.x - x, e.y - y) - e.r;
+    if (dd > tol) continue;
+    const s = dd + (e.d.building ? 6 : 0);
+    if (s < bd) { bd = s; best = e; }
+  }
+  return best;
+}
+const selUnits = () => [...sel].filter(e => e.team === 0 && e.d.unit);
+const selFacts = () => [...sel].filter(e => e.team === 0 && e.d.makes && e.built >= 1);
+const selBuilders = () => selUnits().filter(e => e.d.builds);
+
+function formation(units, x, y) {
+  const n = units.length, sp = Math.max(...units.map(u => u.r)) * 2.5, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push({ x: x + (i % cols - (cols - 1) / 2) * sp, y: y + (Math.floor(i / cols) - (rows - 1) / 2) * sp });
+  const rem = [...units], out = new Map();
+  for (const p of pts) {
+    let bi = 0, bd = 1e18;
+    rem.forEach((u, i) => { const dd = d2(u, p); if (dd < bd) { bd = dd; bi = i; } });
+    out.set(rem[bi], p); rem.splice(bi, 1);
+  }
+  return out;
+}
+function issueMove(units, x, y, queue) {
+  const type = amoveMode ? 'amove' : 'move';
+  const f = formation(units, x, y);
+  for (const [u, p] of f) {
+    const o = { type: u.d.weapon ? type : 'move', x: p.x, y: p.y };
+    if (queue) u.orders.push(o); else { u.orders = [o]; u.tgt = null; }
+  }
+  markers.push({ x, y, t: 0.6, c: amoveMode ? '#ff6b5e' : '#7dff8a' });
+  sfx('click');
+}
+function issueAttack(units, t, queue) {
+  for (const u of units) {
+    const o = u.d.weapon ? { type: 'attack', target: t } : { type: 'move', x: t.x, y: t.y };
+    if (queue) u.orders.push(o); else u.orders = [o];
+  }
+  markers.push({ x: t.x, y: t.y, t: 0.6, c: '#ff6b5e' });
+  sfx('click');
+}
+function issueAssist(builders, b, queue) {
+  for (const u of builders) { const o = { type: 'build', target: b }; if (queue) u.orders.push(o); else u.orders = [o]; }
+  markers.push({ x: b.x, y: b.y, t: 0.6, c: '#7dffa0' });
+  sfx('click');
+}
+function tryPlace(x, y, shift) {
+  const bt = placing;
+  if (bt === 'extracteur') { const dp = depositNear(x, y, 45); if (dp) { x = dp.x; y = dp.y; } }
+  const builders = selBuilders().filter(b => b.d.builds.includes(bt));
+  if (!builders.length) { placing = null; return; }
+  if (!validPlace(bt, x, y, null)) { markers.push({ x, y, t: 0.6, c: '#ff5a50' }); return; }
+  const o = { type: 'place', bt, x, y, site: null };
+  const append = shift || !placeFirst;
+  for (const b of builders) { if (append) b.orders.push(o); else b.orders = [o]; }
+  placeFirst = false;
+  markers.push({ x, y, t: 0.6, c: '#7dffa0' });
+  sfx('click');
+}
+let lastTap = { t: 0, id: -1 };
+function selectHit(hit, shift) {
+  const now = performance.now();
+  if (now - lastTap.t < 380 && lastTap.id === hit.id && hit.team === 0) {
+    const vw = innerWidth / cam.z, vh = innerHeight / cam.z;
+    sel = new Set(ents.filter(e => e.team === 0 && e.type === hit.type && e.built >= 1 && e.x > cam.x && e.x < cam.x + vw && e.y > cam.y && e.y < cam.y + vh));
+  } else if (shift && hit.team === 0) {
+    if (sel.has(hit)) sel.delete(hit); else sel.add(hit);
+    for (const e of [...sel]) if (e.team !== 0) sel.delete(e);
+  } else sel = new Set([hit]);
+  lastTap = { t: now, id: hit.id };
+  sfx('click');
+}
+
+function tap(x, y, right, shift, touch) {
+  const hit = entAt(x, y, touch);
+  if (placing) { if (right) { placing = null; return; } tryPlace(x, y, shift); return; }
+  const units = selUnits(), builders = selBuilders(), facts = selFacts();
+  const ordering = right || touch;
+  if (ordering && units.length && hit && hit.team === 1) { issueAttack(units, hit, shift); return; }
+  if (ordering && builders.length && hit && hit.team === 0 && hit.d.building && (hit.built < 1 || hit.hp < hit.d.hp) && !sel.has(hit)) { issueAssist(builders, hit, shift); return; }
+  if (hit && !right) { selectHit(hit, shift); return; }
+  if (ordering) {
+    if (units.length) issueMove(units, x, y, shift);
+    else if (facts.length) { for (const f of facts) f.rally = { x, y }; markers.push({ x, y, t: 0.6, c: '#ffb02e' }); }
+    return;
+  }
+  if (!shift) sel.clear();
+}
+
+function boxSelect(dr, shift) {
+  const a = s2w(Math.min(dr.x0, dr.x1), Math.min(dr.y0, dr.y1)), b = s2w(Math.max(dr.x0, dr.x1), Math.max(dr.y0, dr.y1));
+  const inside = e => e.team === 0 && e.x > a.x && e.x < b.x && e.y > a.y && e.y < b.y;
+  let pickd = ents.filter(e => inside(e) && e.d.unit);
+  if (!pickd.length) pickd = ents.filter(e => inside(e) && e.d.building);
+  if (!shift) sel = new Set();
+  for (const e of [...sel]) if (e.team !== 0) sel.delete(e);
+  for (const e of pickd) sel.add(e);
+}
+
+const ptrs = new Map();
+let drag = null, pinch = null;
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+cvs.addEventListener('pointerdown', ev => {
+  ensureAudio();
+  try { cvs.setPointerCapture(ev.pointerId); } catch (e) {}
+  ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, sx: ev.clientX, sy: ev.clientY, btn: ev.button, type: ev.pointerType, moved: false, mode: null });
+  if (ev.pointerType === 'mouse' && ev.button === 1) ev.preventDefault();
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+    drag = null;
+    for (const p of ptrs.values()) p.mode = 'pinch';
+  }
+});
+cvs.addEventListener('pointermove', ev => {
+  if (ev.pointerType === 'mouse') { hasMouse = true; mouseW = s2w(ev.clientX, ev.clientY); }
+  const p = ptrs.get(ev.pointerId);
+  if (!p) return;
+  const px = p.x, py = p.y;
+  p.x = ev.clientX; p.y = ev.clientY;
+  if (p.mode === 'pinch') {
+    if (!pinch || ptrs.size < 2) return;
+    const [a, b] = [...ptrs.values()];
+    const dd = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const before = s2w(pinch.mx, pinch.my);
+    cam.z = clamp(cam.z * dd / pinch.d, ZMIN, ZMAX);
+    cam.x = before.x - mx / cam.z; cam.y = before.y - my / cam.z;
+    pinch.d = dd; pinch.mx = mx; pinch.my = my;
+    clampCam();
+    return;
+  }
+  if (!p.moved && Math.hypot(p.x - p.sx, p.y - p.sy) > 9) {
+    p.moved = true;
+    if (p.type === 'mouse') p.mode = p.btn === 0 ? (placing ? 'none' : 'box') : 'pan';
+    else p.mode = boxMode && !placing ? 'box' : 'pan';
+    if (p.mode === 'box') drag = { x0: p.sx, y0: p.sy, x1: p.x, y1: p.y };
+  }
+  if (p.mode === 'pan') { cam.x -= (p.x - px) / cam.z; cam.y -= (p.y - py) / cam.z; clampCam(); }
+  else if (p.mode === 'box' && drag) { drag.x1 = p.x; drag.y1 = p.y; }
+});
+function pointerEnd(ev) {
+  const p = ptrs.get(ev.pointerId);
+  if (!p) return;
+  ptrs.delete(ev.pointerId);
+  if (p.mode === 'pinch') { if (ptrs.size < 2) pinch = null; return; }
+  if (p.mode === 'box' && drag) { boxSelect(drag, ev.shiftKey); drag = null; return; }
+  if (!p.moved && ev.type === 'pointerup' && running && !over && !paused) {
+    const w = s2w(p.x, p.y);
+    tap(w.x, w.y, p.type === 'mouse' && p.btn === 2, ev.shiftKey, p.type !== 'mouse');
+    forceUI = true;
+  }
+}
+cvs.addEventListener('pointerup', pointerEnd);
+cvs.addEventListener('pointercancel', pointerEnd);
+cvs.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const before = s2w(ev.clientX, ev.clientY);
+  cam.z = clamp(cam.z * Math.exp(-ev.deltaY * 0.0015), ZMIN, ZMAX);
+  cam.x = before.x - ev.clientX / cam.z; cam.y = before.y - ev.clientY / cam.z;
+  clampCam();
+}, { passive: false });
+
+// minicarte
+let miniDown = false;
+function miniJump(ev) {
+  const r = mini.getBoundingClientRect();
+  centerOn({ x: (ev.clientX - r.left) / r.width * W, y: (ev.clientY - r.top) / r.height * H });
+}
+mini.addEventListener('pointerdown', ev => { miniDown = true; try { mini.setPointerCapture(ev.pointerId); } catch (e) {} miniJump(ev); });
+mini.addEventListener('pointermove', ev => { if (miniDown) miniJump(ev); });
+mini.addEventListener('pointerup', () => miniDown = false);
+mini.addEventListener('pointercancel', () => miniDown = false);
+
+// clavier
+const keys = {};
+addEventListener('keydown', ev => {
+  keys[ev.key] = true;
+  if (!running) return;
+  const k = ev.key.toLowerCase();
+  if (k === 'escape') { if (placing) placing = null; else sel.clear(); }
+  else if (k === 'a') amoveMode = !amoveMode;
+  else if (k === 's') act('stop');
+  else if (k === ' ') act('cmdr');
+  else if (k === 'p') act('menu');
+  forceUI = true;
+});
+addEventListener('keyup', ev => { keys[ev.key] = false; });
+function keyPan(dt) {
+  const sp = 700 / cam.z * dt;
+  if (keys.ArrowLeft) cam.x -= sp; if (keys.ArrowRight) cam.x += sp;
+  if (keys.ArrowUp) cam.y -= sp; if (keys.ArrowDown) cam.y += sp;
+  if (keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown) clampCam();
+}
+
+// ====================================================================
+//  INTERFACE
+// ====================================================================
+const $ = id => document.getElementById(id);
+let forceUI = true, uiT = 0, lastBtns = '';
+
+function act(a) {
+  const [k, v] = a.split(':');
+  switch (k) {
+    case 'build': placing = v; placeFirst = true; break;
+    case 'done': placing = null; break;
+    case 'make': for (const f of selFacts()) if (f.queue.length < 30) f.queue.push(v); break;
+    case 'undo': for (const f of selFacts()) { if (f.queue.length) { f.queue.pop(); if (!f.queue.length) f.prog = 0; } } break;
+    case 'repeat': { const fs = selFacts(); const r = fs.length && !fs[0].repeat; fs.forEach(f => f.repeat = r); break; }
+    case 'stop': for (const u of selUnits()) { u.orders = []; u.tgt = null; } break;
+    case 'mode': amoveMode = !amoveMode; break;
+    case 'box': boxMode = !boxMode; break;
+    case 'army': sel = new Set(ents.filter(e => e.team === 0 && e.d.unit && e.d.weapon && e.type !== 'architecte')); placing = null; break;
+    case 'builders': sel = new Set(ents.filter(e => e.team === 0 && e.type === 'constructeur')); placing = null; break;
+    case 'cmdr': { const c = ents.find(e => e.team === 0 && e.type === 'architecte'); if (c) { sel = new Set([c]); centerOn(c); } placing = null; break; }
+    case 'desel': sel.clear(); placing = null; break;
+    case 'menu': paused = true; $('pause').classList.remove('hidden'); break;
+  }
+  sfx('click');
+  forceUI = true;
+}
+function onBtn(ev) {
+  const b = ev.target.closest('[data-a]');
+  if (!b) return;
+  ev.preventDefault();
+  ensureAudio();
+  if (!running || over) return;
+  act(b.dataset.a);
+}
+$('btns').addEventListener('pointerdown', onBtn);
+$('quick').addEventListener('pointerdown', onBtn);
+
+const costTxt = d => `${d.cost[0]} ⛏ · ${d.cost[1]} ⚡`;
+function uiTick(dt) {
+  uiT -= dt;
+  if (uiT > 0 && !forceUI) return;
+  uiT = 0.2; forceUI = false;
+  const R = res[0];
+  if (!R) return;
+  $('mTxt').textContent = Math.floor(R.m) + ' / ' + Math.floor(R.maxM);
+  $('eTxt').textContent = Math.floor(R.e) + ' / ' + Math.floor(R.maxE);
+  $('mRate').innerHTML = `<span style="color:#8f8">+${R.rateM.toFixed(1)}</span> <span style="color:${R.stallM ? '#f66' : '#f99'}">−${R.useM.toFixed(1)}</span>`;
+  $('eRate').innerHTML = `<span style="color:#8f8">+${R.rateE.toFixed(0)}</span> <span style="color:${R.stallE ? '#f66' : '#f99'}">−${R.useE.toFixed(0)}</span>`;
+  $('mBar').style.width = (R.m / R.maxM * 100) + '%';
+  $('eBar').style.width = (R.e / R.maxE * 100) + '%';
+  $('mBar').style.background = R.stallM ? '#ff5a50' : '#b8c4d0';
+  $('eBar').style.background = R.stallE ? '#ff5a50' : '#ffd23f';
+  $('clock').textContent = fmtT(gameT);
+  $('qbBox').classList.toggle('on', boxMode);
+
+  // info
+  let info = '';
+  const list = [...sel];
+  if (placing) info = `Placer : <b>${T[placing].name}</b> — ${placing === 'extracteur' ? 'touche un gisement' : 'touche la carte'} (plusieurs fois pour une file)`;
+  else if (list.length === 1) {
+    const e = list[0];
+    info = `<b style="color:${COL[e.team].light}">${e.d.name}</b> ${e.team === 1 ? '(ennemi) ' : ''}— PV ${Math.ceil(e.hp)}/${e.d.hp}`;
+    if (e.built < 1) info += ` — construction ${Math.floor(e.built * 100)}%`;
+    else if (e.d.makes && e.queue.length) info += ` — produit ${T[e.queue[0]].name} ${Math.floor(e.prog * 100)}%`;
+    else if (e.d.desc) info += ` — ${e.d.desc}`;
+  } else if (list.length > 1) {
+    const c = {};
+    for (const e of list) c[e.d.name] = (c[e.d.name] || 0) + 1;
+    info = `<b>${list.length} sélectionnés</b> — ` + Object.entries(c).map(([n, k]) => `${k}× ${n}`).join(', ');
+  } else info = '<span style="color:#aaa">Touche une unité pour la sélectionner. ♛ = ton Architecte.</span>';
+  $('info').innerHTML = info;
+
+  // boutons
+  let h = '';
+  const units = selUnits(), builders = selBuilders(), facts = selFacts();
+  if (placing) h += `<div class="b on" data-a="done"><b>✓ Terminé</b><small>quitter le placement</small></div>`;
+  else {
+    if (builders.length) {
+      const opts = builders.find(b => b.type === 'constructeur') ? T.constructeur.builds : builders[0].d.builds;
+      for (const bt of opts) { const d = T[bt]; h += `<div class="b" data-a="build:${bt}"><b>${d.name}</b><small>${costTxt(d)}</small></div>`; }
+    }
+    if (facts.length) {
+      const f = facts[0];
+      for (const ut of f.d.makes) {
+        const d = T[ut], n = f.queue.filter(q => q === ut).length;
+        h += `<div class="b" data-a="make:${ut}"><b>${d.name}</b><small>${costTxt(d)}</small>${n ? `<span class="n">${n}</span>` : ''}</div>`;
+      }
+      h += `<div class="b ${f.repeat ? 'on' : ''}" data-a="repeat"><b>↻ Répéter</b><small>${f.repeat ? 'activé' : 'désactivé'}</small></div>`;
+      if (f.queue.length) h += `<div class="b red" data-a="undo"><b>↶ Retirer</b><small>dernier de la file</small></div>`;
+    }
+    if (units.some(u => u.d.weapon)) h += `<div class="b ${amoveMode ? 'on' : ''}" data-a="mode"><b>${amoveMode ? '⚔ Attaque' : '➜ Déplacer'}</b><small>mode d'ordre (A)</small></div>`;
+    if (units.length) h += `<div class="b" data-a="stop"><b>■ Stop</b><small>annuler ordres</small></div>`;
+  }
+  if (h !== lastBtns) { $('btns').innerHTML = h; lastBtns = h; }
+}
+
+// ====================================================================
+//  DÉMARRAGE
+// ====================================================================
+function newGame(diff) {
+  aiMult = diff;
+  ents = []; projs = []; beams = []; parts = []; markers = []; sel = new Set();
+  nid = 0; gameT = 0; over = false; paused = false; placing = null; amoveMode = false; endTimer = 0;
+  res = [newRes(), newRes()];
+  ai.think = 2; ai.wave = 5;
+  genDeposits();
+  genTerrain();
+  buildMiniBg();
+  const pc = spawn('architecte', 0, 500, H - 500);
+  spawn('architecte', 1, W - 500, 500);
+  cam.z = innerWidth < 700 ? 0.9 : 1;
+  centerOn(pc);
+  sel = new Set([pc]);
+  running = true; forceUI = true; lastBtns = '';
+  ['start', 'end', 'pause'].forEach(id => $(id).classList.add('hidden'));
+}
+
+document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => { ensureAudio(); newGame(parseFloat(b.dataset.diff)); }));
+$('resume').addEventListener('click', () => { paused = false; $('pause').classList.add('hidden'); });
+$('restart').addEventListener('click', () => { running = false; $('pause').classList.add('hidden'); $('start').classList.remove('hidden'); });
+$('again').addEventListener('click', () => { running = false; $('end').classList.add('hidden'); $('start').classList.remove('hidden'); });
+$('soundBtn').addEventListener('click', () => { soundOn = !soundOn; $('soundBtn').textContent = 'Son : ' + (soundOn ? 'oui' : 'non'); });
+
+// écran d'accueil : décor en arrière-plan
+res = [newRes(), newRes()];
+genDeposits(); genTerrain(); buildMiniBg();
+resize();
+cam.z = 0.6; centerOn({ x: W / 2, y: H / 2 });
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (running && !paused && !over) update(dt);
+  if (!running) { cam.x += dt * 15; if (cam.x > W - innerWidth / cam.z) cam.x = 0; }
+  keyPan(dt);
+  render();
+  if (running) uiTick(dt);
+  drawMini();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
