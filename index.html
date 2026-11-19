@@ -42,10 +42,11 @@ input{user-select:text;-webkit-user-select:text}
 .hidden{display:none!important}
 h1{font-size:42px;letter-spacing:5px;color:#ff4636;text-shadow:0 0 24px #b5121a}
 /* titre en flammes de l'écran d'accueil */
-#flameT{position:relative;width:100%;display:flex;justify-content:center;padding:8px 0 4px}
-#flameT h1{position:relative;z-index:0;background:linear-gradient(#fff3c4 8%,#ffb12e 38%,#ff4a12 62%,#a50d12 92%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;animation:heat 1.6s ease-in-out infinite alternate}
-#flameCv{position:absolute;left:0;top:-64px;width:100%;height:calc(100% + 214px);pointer-events:none;z-index:1}
-@keyframes heat{0%{filter:drop-shadow(0 0 10px #ff3a0aaa) drop-shadow(0 0 26px #b5121a)}50%{filter:drop-shadow(0 0 16px #ff7a1acc) drop-shadow(0 0 34px #d0181a)}100%{filter:drop-shadow(0 0 8px #ff2a0a99) drop-shadow(0 0 22px #9a0e14)}}
+.fireT{position:relative;width:100%;display:flex;justify-content:center;padding:8px 0 4px}
+.fireT.lit>h1,.fireT.lit>h2{position:relative;z-index:0;background:linear-gradient(#ffd98a 10%,#ff9a2a 40%,#e8461a 64%,#8e0e12 94%);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none;animation:heat 1.8s ease-in-out infinite alternate}
+.fireCv{position:absolute;left:0;top:-64px;width:100%;height:calc(100% + 214px);pointer-events:none;z-index:1}
+.fireT:not(.lit)>.fireCv{display:none}
+@keyframes heat{0%{filter:drop-shadow(0 0 6px #ff3a0a77) drop-shadow(0 0 18px #b5121a99)}50%{filter:drop-shadow(0 0 10px #ff6a1a99) drop-shadow(0 0 24px #c0161aaa)}100%{filter:drop-shadow(0 0 5px #ff2a0a66) drop-shadow(0 0 16px #9a0e1488)}}
 h2{font-size:30px;letter-spacing:3px}
 .logo{width:96px;height:96px;border-radius:22px;box-shadow:0 6px 24px #000a}
 .sub{color:#bbb;max-width:520px;font-size:14px;line-height:1.45}
@@ -116,7 +117,7 @@ h2{font-size:30px;letter-spacing:3px}
 
 <div id="start" class="overlay">
   <img class="logo" src="icons/icon-192.png" alt="">
-  <div id="flameT"><canvas id="flameCv"></canvas><h1>TOTALKILL 2000</h1></div>
+  <div id="flameT" class="fireT lit"><canvas id="flameCv" class="fireCv"></canvas><h1 id="startTitle">TOTALKILL 2000</h1></div>
   <div class="sub">Stratégie temps réel. Développe ton économie, construis une armée et détruis l'Architecte ennemi.</div>
   <div class="card">
     <div class="ttl">CARTE</div>
@@ -193,7 +194,7 @@ h2{font-size:30px;letter-spacing:3px}
 </div>
 
 <div id="end" class="overlay hidden">
-  <h2 id="endTitle">VICTOIRE</h2>
+  <div id="endFT" class="fireT"><canvas id="endFireCv" class="fireCv"></canvas><h2 id="endTitle">VICTOIRE</h2></div>
   <div class="sub" id="endSub"></div>
   <div class="row"><button class="big hidden" id="watchBtn">👁 Regarder la suite</button><button class="big acc" id="again">Menu principal</button></div>
 </div>
@@ -2437,6 +2438,7 @@ function showEnd(w, title, sub) {
   }
   $('endTitle').textContent = t;
   $('endTitle').style.color = col;
+  $('endFT').classList.toggle('lit', won && !watching);   // titre en flammes pour la victoire
   $('endSub').textContent = st;
   $('watchBtn').classList.toggle('hidden', !watching);
   $('end').classList.remove('hidden');
@@ -3805,33 +3807,46 @@ function resolveMap() { return selMap === 'random' ? pick(MAPS).id : (MAPS.some(
 function updateFogBtn() { $('fogBtn').textContent = '🌫 Brouillard de guerre : ' + (fogOn ? 'activé' : 'désactivé'); }
 $('fogBtn').addEventListener('click', () => { fogOn = !fogOn; try { localStorage.setItem('tk-fog', fogOn ? '1' : '0'); } catch (e) {} updateFogBtn(); });
 
-// écran d'accueil : titre en flammes, avec des flammèches qui jaillissent puis retombent
-(function titleFire() { try {
-  const cv = $('flameCv'), h1 = $('flameT').querySelector('h1'), st = $('start');
+// titres en flammes (écran d'accueil, écran de victoire) : langues de feu poussées par une turbulence,
+// fumée légère, et flammèches qui jaillissent puis retombent. Purement visuel, actif seulement à l'écran.
+function titleFire(wrapId, cvId, titleId, overlayId) { try {
+  const wrap = $(wrapId), cv = $(cvId), tt = $(titleId), ov = $(overlayId);
   const g = cv.getContext('2d');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.4 : 1;
-  // sprites lumineux pré-rendus, du cœur blanc à la fumée rouge sombre
-  const SPR = ['255,250,225', '255,214,96', '255,140,34', '232,62,18', '130,22,10'].map(c => {
-    const s = document.createElement('canvas'); s.width = s.height = 64;
-    const x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, `rgba(${c},1)`); gr.addColorStop(0.35, `rgba(${c},0.55)`); gr.addColorStop(1, `rgba(${c},0)`);
-    x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return s;
-  });
-  let cw = 0, ch = 0, dpr = 1, edge = [], fill = [], box = null, flames = [], embers = [], acc = 0, accE = 0, accS = 0, last = 0, on = false;
-  // repère les pixels des lettres (et surtout leurs bords supérieurs) pour y allumer les flammes
+  // 24 sprites lumineux : la couleur suit le refroidissement de la flamme (jaune → orange → rouge → braise sombre)
+  const STOPS = [[0, 255, 200, 110], [0.18, 255, 150, 45], [0.45, 225, 78, 18], [0.75, 150, 34, 12], [1, 70, 14, 8]];
+  const NS = 24, SPR = [];
+  for (let i = 0; i < NS; i++) {
+    const k = i / (NS - 1); let j = 0; while (j < STOPS.length - 2 && k > STOPS[j + 1][0]) j++;
+    const A = STOPS[j], B = STOPS[j + 1], u = (k - A[0]) / (B[0] - A[0]);
+    const c = [1, 2, 3].map(n => Math.round(A[n] + (B[n] - A[n]) * u)).join(',');
+    const s = document.createElement('canvas'); s.width = s.height = 48;
+    const x = s.getContext('2d'), gr = x.createRadialGradient(24, 24, 0, 24, 24, 24);
+    gr.addColorStop(0, `rgba(${c},0.9)`); gr.addColorStop(0.45, `rgba(${c},0.35)`); gr.addColorStop(1, `rgba(${c},0)`);
+    x.fillStyle = gr; x.fillRect(0, 0, 48, 48); SPR.push(s);
+  }
+  const SMOKE = (() => {
+    const s = document.createElement('canvas'); s.width = s.height = 48;
+    const x = s.getContext('2d'), gr = x.createRadialGradient(24, 24, 0, 24, 24, 24);
+    gr.addColorStop(0, 'rgba(28,22,20,0.8)'); gr.addColorStop(1, 'rgba(28,22,20,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 48, 48); return s;
+  })();
+  let cw = 0, ch = 0, dpr = 1, edge = [], fill = [], box = null, flames = [], smoke = [], embers = [];
+  let acc = 0, accE = 0, accS = 0, last = 0, T = 0, on = false, rate = 1;
+  // repère les pixels du titre (surtout les bords supérieurs des lettres) pour y allumer le feu
   function setup() {
-    const r = cv.getBoundingClientRect(), hr = h1.getBoundingClientRect();
-    cw = r.width; ch = r.height; if (cw < 10 || ch < 10) return false;
+    const r = cv.getBoundingClientRect(), hr = tt.getBoundingClientRect();
+    cw = r.width; ch = r.height; if (cw < 10 || ch < 10 || hr.width < 10) return false;
     dpr = Math.min(devicePixelRatio || 1, 1.5);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
     const m = document.createElement('canvas'); m.width = Math.ceil(cw); m.height = Math.ceil(ch);
-    const x = m.getContext('2d'), cs = getComputedStyle(h1);
+    const x = m.getContext('2d', { willReadFrequently: true }), cs = getComputedStyle(tt);
     x.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     if ('letterSpacing' in x) x.letterSpacing = cs.letterSpacing;
     x.textBaseline = 'middle'; x.textAlign = 'center';
     const ox = hr.left - r.left, oy = hr.top - r.top;
     box = { x: ox, y: oy, w: hr.width, h: hr.height };
-    x.fillText(h1.textContent, ox + hr.width / 2 + (parseFloat(cs.letterSpacing) || 0) / 2, oy + hr.height / 2);
+    x.fillText(tt.textContent, ox + hr.width / 2 + (parseFloat(cs.letterSpacing) || 0) / 2, oy + hr.height / 2);
     const d = x.getImageData(0, 0, m.width, m.height).data, W2 = m.width;
     edge = []; fill = [];
     for (let y = 3; y < m.height; y += 2) for (let xx = 0; xx < W2; xx += 2) {
@@ -3839,73 +3854,102 @@ $('fogBtn').addEventListener('click', () => { fogOn = !fogOn; try { localStorage
       fill.push(xx, y);
       if (d[((y - 3) * W2 + xx) * 4 + 3] < 60) edge.push(xx, y);
     }
+    rate = Math.min(1.3, Math.max(0.45, box.w / 520));   // un titre plus court brûle avec moins de particules
     return edge.length > 0;
   }
+  // turbulence partagée : les flammes voisines bougent ensemble et forment des langues
+  const wind = (x, y) => Math.sin(x * 0.045 + T * 2.1 + Math.sin(y * 0.035 - T * 1.7) * 2.2) * 34
+                       + Math.sin(x * 0.12 - T * 3.6 + y * 0.06) * 14;
+  // intensité qui varie le long du titre : le feu monte par bouffées
+  const gust = x => 0.5 + 0.5 * Math.sin(x * 0.07 + T * 4.3 + Math.sin(x * 0.019 - T * 1.1) * 3);
   function spawnFlame() {
-    const fromEdge = Math.random() < 0.8, a = fromEdge ? edge : fill, i = (Math.random() * a.length / 2 | 0) * 2;
-    flames.push({ x: a[i] + (Math.random() - 0.5) * 3, y: a[i + 1], vx: (Math.random() - 0.5) * 14, vy: -(35 + Math.random() * 60),
-      t: 0, L: 0.5 + Math.random() * 0.6, s: 13 + Math.random() * 17, ph: Math.random() * 6.3 });
-  }
-  function spawnEmber(sky) {
-    if (sky) embers.push({ x: Math.random() * cw, y: -4, vx: (Math.random() - 0.5) * 20, vy: 15 + Math.random() * 35,
-      t: 0, L: 3 + Math.random() * 2.5, s: 1 + Math.random() * 1.6, ph: Math.random() * 6.3 });
-    else {
-      const i = (Math.random() * edge.length / 2 | 0) * 2;
-      embers.push({ x: edge[i], y: edge[i + 1] - 6, vx: (Math.random() - 0.5) * 110, vy: -(90 + Math.random() * 170),
-        t: 0, L: 1.8 + Math.random() * 1.8, s: 1.1 + Math.random() * 1.9, ph: Math.random() * 6.3 });
+    for (let tries = 0; tries < 4; tries++) {
+      const fromEdge = Math.random() < 0.85, a = fromEdge ? edge : fill, i = (Math.random() * a.length / 2 | 0) * 2;
+      const x = a[i], y = a[i + 1], gu = gust(x);
+      if (Math.random() > 0.25 + 0.75 * gu) continue;
+      flames.push({ x: x + (Math.random() - 0.5) * 3, y, vx: 0, vy: -(20 + Math.random() * 25),
+        t: 0, L: (0.35 + Math.random() * 0.45) * (0.7 + 0.6 * gu), s: 8 + Math.random() * 9 });
+      return;
     }
   }
+  function spawnEmber(sky) {
+    if (sky) embers.push({ x: Math.random() * cw, y: -4, vx: (Math.random() - 0.5) * 20, vy: 15 + Math.random() * 30,
+      t: 0, L: 3 + Math.random() * 2.5, s: 1 + Math.random() * 1.3, ph: Math.random() * 6.3 });
+    else {
+      const i = (Math.random() * edge.length / 2 | 0) * 2;
+      embers.push({ x: edge[i], y: edge[i + 1] - 8, vx: (Math.random() - 0.5) * 100, vy: -(80 + Math.random() * 160),
+        t: 0, L: 1.8 + Math.random() * 1.8, s: 1 + Math.random() * 1.5, ph: Math.random() * 6.3 });
+    }
+  }
+  const drop = (a, i) => { a[i] = a[a.length - 1]; a.pop(); };
   function step(now) {
     if (!on) return;
     requestAnimationFrame(step);
-    const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now;
-    acc += dt * 330 * calm; accE += dt * 16 * calm; accS += dt * 4 * calm;
-    while (acc >= 1) { acc--; if (flames.length < 650) spawnFlame(); }
-    while (accE >= 1) { accE--; if (embers.length < 120) spawnEmber(false); }
-    while (accS >= 1) { accS--; if (embers.length < 120) spawnEmber(true); }
+    const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now; T += dt;
+    acc += dt * 520 * rate * calm; accE += dt * 12 * rate * calm; accS += dt * 3 * calm;
+    while (acc >= 1) { acc--; if (flames.length < 900) spawnFlame(); }
+    while (accE >= 1) { accE--; if (embers.length < 90) spawnEmber(false); }
+    while (accS >= 1) { accS--; if (embers.length < 90) spawnEmber(true); }
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, cw, ch);
+    // fumée (mélange normal, derrière le feu)
+    for (let i = smoke.length - 1; i >= 0; i--) {
+      const p = smoke[i]; p.t += dt; const k = p.t / p.L; if (k >= 1) { drop(smoke, i); continue; }
+      p.x += wind(p.x, p.y) * 0.6 * dt; p.y += p.vy * dt;
+      const s = p.s * (1 + k * 2.2);
+      g.globalAlpha = 0.22 * Math.sin(Math.PI * k);
+      g.drawImage(SMOKE, p.x - s / 2, p.y - s / 2, s, s);
+    }
     g.globalCompositeOperation = 'lighter';
-    // lueur de braise sous le titre, qui vacille
-    const fl = 0.75 + 0.25 * Math.sin(now / 90) * Math.sin(now / 237);
-    const gr = g.createRadialGradient(cw / 2, box.y + box.h * 0.7, 0, cw / 2, box.y + box.h * 0.7, box.w * 0.6);
-    gr.addColorStop(0, `rgba(255,90,20,${0.22 * fl})`); gr.addColorStop(1, 'rgba(255,40,10,0)');
+    // lueur discrète sous le titre
+    const fl = 0.8 + 0.2 * Math.sin(T * 11) * Math.sin(T * 4.3);
+    const cy = box.y + box.h * 0.6, gr = g.createRadialGradient(cw / 2, cy, 0, cw / 2, cy, box.w * 0.55);
+    gr.addColorStop(0, `rgba(255,80,20,${0.1 * fl})`); gr.addColorStop(1, 'rgba(255,40,10,0)');
     g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
     for (let i = flames.length - 1; i >= 0; i--) {
       const p = flames[i]; p.t += dt;
-      const k = p.t / p.L; if (k >= 1) { flames[i] = flames[flames.length - 1]; flames.pop(); continue; }
-      p.vx += Math.sin(now / 160 + p.ph) * 40 * dt; p.vy -= 30 * dt;
+      const k = p.t / p.L;
+      if (k >= 1) {
+        if (Math.random() < 0.06 && smoke.length < 120) smoke.push({ x: p.x, y: p.y, vy: -(25 + Math.random() * 20), t: 0, L: 1.4 + Math.random(), s: 10 + Math.random() * 8 });
+        drop(flames, i); continue;
+      }
+      p.vy -= 140 * dt;                                         // poussée de l'air chaud : la flamme accélère en montant
+      p.vx += (wind(p.x, p.y) - p.vx) * Math.min(1, 6 * dt);    // entraînée par la turbulence
       p.x += p.vx * dt; p.y += p.vy * dt;
-      const s = p.s * (1 - k * 0.65), a = Math.min(1, k * 8) * (1 - k);
-      g.globalAlpha = a * 0.8;
-      g.drawImage(SPR[Math.min(4, k * 5 | 0)], p.x - s / 2, p.y - s * 0.8, s, s * 1.6);
+      const s = p.s * (k < 0.2 ? 0.7 + k * 1.5 : 1 - (k - 0.2) * 0.9);   // s'élargit à la base puis s'effile
+      const sy = Math.min(2.6, 1.4 + Math.abs(p.vy) / 120);              // étirée par la vitesse
+      g.globalAlpha = Math.min(1, k * 10) * (1 - k) * 0.42;
+      g.drawImage(SPR[Math.min(NS - 1, k * NS | 0)], p.x - s / 2, p.y - s * sy * 0.6, s, s * sy);
     }
     for (let i = embers.length - 1; i >= 0; i--) {
       const p = embers[i]; p.t += dt;
       const k = p.t / p.L;
-      if (k >= 1 || p.y > ch + 6) { embers[i] = embers[embers.length - 1]; embers.pop(); continue; }
-      p.vy += 160 * dt; p.vx *= 1 - 0.8 * dt; p.vy *= 1 - 0.5 * dt;          // gravité + air : elles montent, ralentissent, retombent
-      p.vx += Math.sin(now / 300 + p.ph) * 25 * dt;                           // balancement
+      if (k >= 1 || p.y > ch + 6) { drop(embers, i); continue; }
+      p.vy += 160 * dt; p.vx *= 1 - 0.8 * dt; p.vy *= 1 - 0.5 * dt;   // gravité + air : elles montent, ralentissent, retombent
+      p.vx += Math.sin(T * 3.3 + p.ph) * 25 * dt;                     // balancement
       p.x += p.vx * dt; p.y += p.vy * dt;
-      const tw = 0.6 + 0.4 * Math.sin(now / 45 + p.ph * 7), a = (1 - k) * tw;  // scintillement en refroidissant
-      const s = p.s * 7;
-      g.globalAlpha = a * 0.7; g.drawImage(SPR[k < 0.5 ? 2 : 3], p.x - s / 2, p.y - s / 2, s, s);
-      g.globalAlpha = a; g.fillStyle = k < 0.4 ? '#fff2b0' : '#ffa040';
+      const tw = 0.6 + 0.4 * Math.sin(T * 22 + p.ph * 7), a = (1 - k) * tw;   // scintillement en refroidissant
+      const s = p.s * 6;
+      g.globalAlpha = a * 0.5; g.drawImage(SPR[Math.min(NS - 1, 6 + k * 12 | 0)], p.x - s / 2, p.y - s / 2, s, s);
+      g.globalAlpha = a * 0.85; g.fillStyle = k < 0.4 ? '#ffd890' : '#ff8a3a';
       g.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
     }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   }
   function sync() {
-    const want = !st.classList.contains('hidden') && !document.hidden;
+    const want = !ov.classList.contains('hidden') && wrap.classList.contains('lit') && !document.hidden;
     if (want && !on) { if (!setup()) return; on = true; last = performance.now(); requestAnimationFrame(step); }
-    else if (!want && on) { on = false; flames = []; embers = []; g.clearRect(0, 0, cv.width, cv.height); }
+    else if (!want && on) { on = false; flames = []; smoke = []; embers = []; g.clearRect(0, 0, cv.width, cv.height); }
   }
-  new MutationObserver(sync).observe(st, { attributes: true, attributeFilter: ['class'] });
+  const mo = new MutationObserver(sync);
+  mo.observe(ov, { attributes: true, attributeFilter: ['class'] });
+  mo.observe(wrap, { attributes: true, attributeFilter: ['class'] });
   document.addEventListener('visibilitychange', sync);
-  new ResizeObserver(() => { if (on) setup(); else sync(); }).observe($('flameT'));
+  new ResizeObserver(() => { if (on) setup(); else sync(); }).observe(wrap);
   requestAnimationFrame(sync);
-  } catch (e) { /* navigateur trop ancien : titre sans animation */ }
-})();
+} catch (e) { /* navigateur trop ancien : titre sans animation */ } }
+titleFire('flameT', 'flameCv', 'startTitle', 'start');
+titleFire('endFT', 'endFireCv', 'endTitle', 'end');
 
 // écran d'accueil : décor
 res = [newRes(), newRes(), newRes(), newRes()];
