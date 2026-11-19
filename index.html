@@ -59,6 +59,14 @@ h2{font-size:30px;letter-spacing:3px}
 .help b{color:#ff4636}
 .ver{color:#667;font-size:11px}
 .maps{display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:4px 2px 8px;touch-action:pan-x}
+/* barres de défilement fines aux couleurs du jeu (Chrome, Edge, Safari ; Firefox plus bas) */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#ffffff08;border-radius:8px}
+::-webkit-scrollbar-thumb{background:linear-gradient(#b5121a,#7d0a10);border-radius:8px;border:1px solid #ff463655}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(#e0221c,#a10f16)}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-corner{background:transparent}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:#b5121a #ffffff10}}
 .mp{flex:0 0 auto;width:96px;border:2px solid #fff2;border-radius:10px;background:#0b0f16;cursor:pointer;padding:5px 4px;font-size:11px;color:#bbb;line-height:1.2}
 .mp canvas{width:84px;height:84px;border-radius:6px;display:block;margin:0 auto 4px}
 .mp.on{border-color:#ff4636;color:#fff;background:#2a0c0c}
