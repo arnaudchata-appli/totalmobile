@@ -72,6 +72,48 @@ for (let i = 0; i < 20 * 20; i++) run(S, 'update(0.05)');
 check(run(S, "!wrecks.some(w=>w.type==='char') && res[0].m >= 100 + wm - 5"), "le constructeur devrait recycler l'épave en minerai");
 console.log('Avions, DCA, bombes et recyclage des épaves vérifiés (épave de char : ' + run(S, 'wm') + ' minerai)');
 
+// 1e) Technologies évoluées : usine évoluée, agent, Grosse Berta, silo nucléaire, bouclier antimissile, avion constructeur
+run(S, "startGame('solo','plaines',1.15); aiTeams.clear(); fogOn=false; res.forEach(R=>{R.m=1e6;R.e=1e6;}); ents.forEach(e=>{ if(e.type==='architecte') { e.d.storM=1e7; e.d.storE=1e7; } });");
+run(S, "var q0=BASES[0]; var cs=spawn('constructeur',0,q0.x+100,q0.y-100); applyCmd({k:'place',ids:[cs.id],bt:'usine2',x:q0.x+260,y:q0.y-260},0); for(let i=0;i<20*60;i++) update(0.05);");
+check(run(S, "ents.some(e=>e.type==='usine2'&&e.team===0&&e.built>=1)"), "le constructeur devrait bâtir l'usine évoluée");
+run(S, "var uSine2=ents.find(e=>e.type==='usine2'); applyCmd({k:'make',ids:[uSine2.id],ut:'agent'},0); applyCmd({k:'make',ids:[uSine2.id],ut:'mastodonte'},0); for(let i=0;i<20*60;i++) update(0.05);");
+check(run(S, "ents.some(e=>e.type==='agent'&&e.team===0) && ents.some(e=>e.type==='mastodonte'&&e.team===0)"), "l'usine évoluée devrait produire l'agent et le mastodonte");
+run(S, "var aGent=ents.find(e=>e.type==='agent'); applyCmd({k:'place',ids:[aGent.id],bt:'berta',x:q0.x-150,y:q0.y-350},0); applyCmd({k:'place',ids:[aGent.id],bt:'silo',x:q0.x+150,y:q0.y-450,ap:1},0); for(let i=0;i<20*120;i++) update(0.05);");
+check(run(S, "['berta','silo'].every(t=>ents.some(e=>e.type===t&&e.built>=1))"), "l'agent devrait bâtir la Grosse Berta et le silo");
+// la Berta tire à très longue portée
+run(S, "var bErta=ents.find(e=>e.type==='berta'); var bTgt=spawn('generateur',1,bErta.x+1900,bErta.y-900); for(let i=0;i<20*40&&!bTgt.dead;i++) update(0.05);");
+check(run(S, "bTgt.dead"), "la Grosse Berta devrait détruire une cible à 2100 m");
+// missile nucléaire sans protection : l'Architecte ennemi est détruit
+run(S, "var sIlo=ents.find(e=>e.type==='silo'); applyCmd({k:'make',ids:[sIlo.id],ut:'nuke'},0); applyCmd({k:'make',ids:[sIlo.id],ut:'nuke'},0); applyCmd({k:'make',ids:[sIlo.id],ut:'nuke'},0); for(let i=0;i<20*150;i++) update(0.05);");
+check(run(S, "sIlo.ammo===2 && sIlo.queue.length===1"), 'le silo devrait stocker 2 missiles au plus (stock : ' + run(S, 'sIlo.ammo') + ')');
+// bouclier antimissile ennemi chargé autour de son Architecte
+run(S, "var aRch1=ents.find(e=>e.team===1&&e.type==='architecte'); var aNti=spawn('antinuke',1,aRch1.x-120,aRch1.y+120); aNti.ammo=1; applyCmd({k:'nuke',ids:[sIlo.id],x:aRch1.x,y:aRch1.y},0);");
+check(run(S, "sIlo.ammo===1 && projs.some(p=>p.type==='nuke')"), 'le silo devrait lancer un missile');
+for (let i = 0; i < 20 * 40; i++) run(S, 'update(0.05)');
+check(run(S, "!aRch1.dead && aNti.ammo===0 && !projs.some(p=>p.type==='nuke')"), "le bouclier devrait abattre le missile");
+run(S, "applyCmd({k:'nuke',ids:[sIlo.id],x:aRch1.x,y:aRch1.y},0); for(let i=0;i<20*40;i++) update(0.05);");
+check(run(S, "aRch1.dead && aNti.dead && over"), "le 2e missile (bouclier vide) devrait détruire l'Architecte et finir la partie");
+// avion constructeur : bâtit l'aérodrome évolué en volant
+run(S, "startGame('solo','plaines',1.15); aiTeams.clear(); res.forEach(R=>{R.m=1e6;R.e=1e6;}); ents.forEach(e=>{ if(e.type==='architecte') { e.d.storM=1e7; e.d.storE=1e7; } }); var q0=BASES[0]; var aVc=spawn('avionconst',0,q0.x,q0.y-200); applyCmd({k:'place',ids:[aVc.id],bt:'aeroport2',x:q0.x+300,y:q0.y-350},0); for(let i=0;i<20*90;i++) update(0.05);");
+check(run(S, "ents.some(e=>e.type==='aeroport2'&&e.built>=1)"), "l'avion constructeur devrait bâtir l'aérodrome évolué");
+run(S, "var aEro2=ents.find(e=>e.type==='aeroport2'); applyCmd({k:'make',ids:[aEro2.id],ut:'intercepteur'},0); applyCmd({k:'make',ids:[aEro2.id],ut:'forteresse'},0); for(let i=0;i<20*60;i++) update(0.05);");
+check(run(S, "ents.some(e=>e.type==='intercepteur') && ents.some(e=>e.type==='forteresse')"), "l'aérodrome évolué devrait produire intercepteur et forteresse");
+run(S, "T.architecte.storM=1000; T.architecte.storE=2000;");
+console.log('Usine et aérodrome évolués, agent, Grosse Berta, silo nucléaire et bouclier antimissile vérifiés');
+// IA : longues parties, elle doit utiliser les technologies évoluées
+const ADV = ['usine2','agent','mastodonte','roquettes','sentinelle','avionconst','aeroport2','intercepteur','forteresse','berta','silo','antinuke'];
+const seenAdv = {};
+for (const id of ['continent', 'archipel']) {
+  run(S, "startGame('solo','" + id + "',1.6); aiTeams.add(0);");
+  for (let i = 0; i < 20 * 1800 && !run(S, 'over'); i++) {
+    run(S, 'update(0.05)');
+    if (i % 200 === 0) for (const [t, n] of Object.entries(JSON.parse(run(S, 'JSON.stringify(Object.fromEntries(' + JSON.stringify(ADV) + '.map(t=>[t,ents.filter(e=>e.type===t).length])))')))) seenAdv[t] = Math.max(seenAdv[t] || 0, n);
+  }
+  console.log('IA ' + id + ' terminée à ' + run(S, 'fmtT(gameT)'));
+}
+console.log('IA, maximum atteint : ' + ADV.map(t => t + ':' + (seenAdv[t] || 0)).join(' '));
+check(seenAdv.usine2 > 0, "l'IA devrait construire l'usine évoluée");
+
 // 1c) 4 joueurs, tous joués par l'IA : carte à 4 coins, éliminations, dernier survivant
 for (const id of ['plaines', 'duel', 'canyon']) {
   run(S, `startGame('solo', '${id}', 1.15, { np: 4 }); aiTeams.add(0);`);
@@ -114,8 +156,13 @@ for (let i = 0; i < 10; i++) run(G1, 'guestUpdate(0.05)');
 check(run(H, 'elim.has(2)') && run(G2, 'spectate') && !run(H, 'over') && run(G1, 'ents.filter(e=>e.team===2).length') === 0, "élimination d'un joueur mal gérée");
 for (let i = 0; i < 6; i++) { run(H, 'update(0.05); sendSnap()'); }
 check(run(H, 'wrecks.length') > 0 && run(G1, 'wrecks.length') === run(H, 'wrecks.length'), "épaves mal synchronisées chez l'invité");
+// missile nucléaire de l'hôte : visible chez l'invité, explosion synchronisée
+run(H, "var hs=spawn('silo',0,BASES[0].x+200,BASES[0].y-200); hs.ammo=1; applyCmd({k:'nuke',ids:[hs.id],x:BASES[1].x+300,y:BASES[1].y+300},0); update(0.05); sendSnap();");
+check(run(G1, "projs.some(p=>p.type==='nuke')"), "l'invité devrait voir le missile nucléaire");
+for (let i = 0; i < 20 * 30; i++) { run(H, 'update(0.05)'); if (i % 3 === 0) run(H, 'sendSnap()'); run(G1, 'guestUpdate(0.05)'); }
+check(run(H, "!projs.some(p=>p.type==='nuke')") && run(G1, "!projs.some(p=>p.type==='nuke')"), "le missile devrait avoir explosé chez l'hôte et chez l'invité");
 // déconnexion de l'invité 1 : l'IA reprend son équipe
 run(H, 'onNetClose(net.conns.find(c=>c.team===1))');
 check(run(H, 'aiTeams.has(1)'), "l'IA devrait reprendre l'équipe d'un invité déconnecté");
-console.log(fails ? `${fails} ÉCHEC(S)` : 'OK : cartes, 4 joueurs, avions, épaves, brouillard et synchro réseau corrects');
+console.log(fails ? `${fails} ÉCHEC(S)` : 'OK : cartes, 4 joueurs, avions, épaves, technologies évoluées, nucléaire, brouillard et synchro réseau corrects');
 process.exit(fails ? 1 : 0);
