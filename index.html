@@ -41,6 +41,11 @@ input{user-select:text;-webkit-user-select:text}
 .overlay>:first-child{margin-top:auto}.overlay>:last-child{margin-bottom:auto}
 .hidden{display:none!important}
 h1{font-size:42px;letter-spacing:5px;color:#ff4636;text-shadow:0 0 24px #b5121a}
+/* titre en flammes de l'écran d'accueil */
+#flameT{position:relative;width:100%;display:flex;justify-content:center;padding:8px 0 4px}
+#flameT h1{position:relative;z-index:0;background:linear-gradient(#fff3c4 8%,#ffb12e 38%,#ff4a12 62%,#a50d12 92%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;animation:heat 1.6s ease-in-out infinite alternate}
+#flameCv{position:absolute;left:0;top:-64px;width:100%;height:calc(100% + 214px);pointer-events:none;z-index:1}
+@keyframes heat{0%{filter:drop-shadow(0 0 10px #ff3a0aaa) drop-shadow(0 0 26px #b5121a)}50%{filter:drop-shadow(0 0 16px #ff7a1acc) drop-shadow(0 0 34px #d0181a)}100%{filter:drop-shadow(0 0 8px #ff2a0a99) drop-shadow(0 0 22px #9a0e14)}}
 h2{font-size:30px;letter-spacing:3px}
 .logo{width:96px;height:96px;border-radius:22px;box-shadow:0 6px 24px #000a}
 .sub{color:#bbb;max-width:520px;font-size:14px;line-height:1.45}
@@ -111,7 +116,7 @@ h2{font-size:30px;letter-spacing:3px}
 
 <div id="start" class="overlay">
   <img class="logo" src="icons/icon-192.png" alt="">
-  <h1>TOTALKILL 2000</h1>
+  <div id="flameT"><canvas id="flameCv"></canvas><h1>TOTALKILL 2000</h1></div>
   <div class="sub">Stratégie temps réel. Développe ton économie, construis une armée et détruis l'Architecte ennemi.</div>
   <div class="card">
     <div class="ttl">CARTE</div>
@@ -3799,6 +3804,108 @@ function selectNPui() {
 function resolveMap() { return selMap === 'random' ? pick(MAPS).id : (MAPS.some(m => m.id === selMap) ? selMap : 'plaines'); }
 function updateFogBtn() { $('fogBtn').textContent = '🌫 Brouillard de guerre : ' + (fogOn ? 'activé' : 'désactivé'); }
 $('fogBtn').addEventListener('click', () => { fogOn = !fogOn; try { localStorage.setItem('tk-fog', fogOn ? '1' : '0'); } catch (e) {} updateFogBtn(); });
+
+// écran d'accueil : titre en flammes, avec des flammèches qui jaillissent puis retombent
+(function titleFire() { try {
+  const cv = $('flameCv'), h1 = $('flameT').querySelector('h1'), st = $('start');
+  const g = cv.getContext('2d');
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.4 : 1;
+  // sprites lumineux pré-rendus, du cœur blanc à la fumée rouge sombre
+  const SPR = ['255,250,225', '255,214,96', '255,140,34', '232,62,18', '130,22,10'].map(c => {
+    const s = document.createElement('canvas'); s.width = s.height = 64;
+    const x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(${c},1)`); gr.addColorStop(0.35, `rgba(${c},0.55)`); gr.addColorStop(1, `rgba(${c},0)`);
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return s;
+  });
+  let cw = 0, ch = 0, dpr = 1, edge = [], fill = [], box = null, flames = [], embers = [], acc = 0, accE = 0, accS = 0, last = 0, on = false;
+  // repère les pixels des lettres (et surtout leurs bords supérieurs) pour y allumer les flammes
+  function setup() {
+    const r = cv.getBoundingClientRect(), hr = h1.getBoundingClientRect();
+    cw = r.width; ch = r.height; if (cw < 10 || ch < 10) return false;
+    dpr = Math.min(devicePixelRatio || 1, 1.5);
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    const m = document.createElement('canvas'); m.width = Math.ceil(cw); m.height = Math.ceil(ch);
+    const x = m.getContext('2d'), cs = getComputedStyle(h1);
+    x.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    if ('letterSpacing' in x) x.letterSpacing = cs.letterSpacing;
+    x.textBaseline = 'middle'; x.textAlign = 'center';
+    const ox = hr.left - r.left, oy = hr.top - r.top;
+    box = { x: ox, y: oy, w: hr.width, h: hr.height };
+    x.fillText(h1.textContent, ox + hr.width / 2 + (parseFloat(cs.letterSpacing) || 0) / 2, oy + hr.height / 2);
+    const d = x.getImageData(0, 0, m.width, m.height).data, W2 = m.width;
+    edge = []; fill = [];
+    for (let y = 3; y < m.height; y += 2) for (let xx = 0; xx < W2; xx += 2) {
+      if (d[(y * W2 + xx) * 4 + 3] < 128) continue;
+      fill.push(xx, y);
+      if (d[((y - 3) * W2 + xx) * 4 + 3] < 60) edge.push(xx, y);
+    }
+    return edge.length > 0;
+  }
+  function spawnFlame() {
+    const fromEdge = Math.random() < 0.8, a = fromEdge ? edge : fill, i = (Math.random() * a.length / 2 | 0) * 2;
+    flames.push({ x: a[i] + (Math.random() - 0.5) * 3, y: a[i + 1], vx: (Math.random() - 0.5) * 14, vy: -(35 + Math.random() * 60),
+      t: 0, L: 0.5 + Math.random() * 0.6, s: 13 + Math.random() * 17, ph: Math.random() * 6.3 });
+  }
+  function spawnEmber(sky) {
+    if (sky) embers.push({ x: Math.random() * cw, y: -4, vx: (Math.random() - 0.5) * 20, vy: 15 + Math.random() * 35,
+      t: 0, L: 3 + Math.random() * 2.5, s: 1 + Math.random() * 1.6, ph: Math.random() * 6.3 });
+    else {
+      const i = (Math.random() * edge.length / 2 | 0) * 2;
+      embers.push({ x: edge[i], y: edge[i + 1] - 6, vx: (Math.random() - 0.5) * 110, vy: -(90 + Math.random() * 170),
+        t: 0, L: 1.8 + Math.random() * 1.8, s: 1.1 + Math.random() * 1.9, ph: Math.random() * 6.3 });
+    }
+  }
+  function step(now) {
+    if (!on) return;
+    requestAnimationFrame(step);
+    const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now;
+    acc += dt * 330 * calm; accE += dt * 16 * calm; accS += dt * 4 * calm;
+    while (acc >= 1) { acc--; if (flames.length < 650) spawnFlame(); }
+    while (accE >= 1) { accE--; if (embers.length < 120) spawnEmber(false); }
+    while (accS >= 1) { accS--; if (embers.length < 120) spawnEmber(true); }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, cw, ch);
+    g.globalCompositeOperation = 'lighter';
+    // lueur de braise sous le titre, qui vacille
+    const fl = 0.75 + 0.25 * Math.sin(now / 90) * Math.sin(now / 237);
+    const gr = g.createRadialGradient(cw / 2, box.y + box.h * 0.7, 0, cw / 2, box.y + box.h * 0.7, box.w * 0.6);
+    gr.addColorStop(0, `rgba(255,90,20,${0.22 * fl})`); gr.addColorStop(1, 'rgba(255,40,10,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+    for (let i = flames.length - 1; i >= 0; i--) {
+      const p = flames[i]; p.t += dt;
+      const k = p.t / p.L; if (k >= 1) { flames[i] = flames[flames.length - 1]; flames.pop(); continue; }
+      p.vx += Math.sin(now / 160 + p.ph) * 40 * dt; p.vy -= 30 * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const s = p.s * (1 - k * 0.65), a = Math.min(1, k * 8) * (1 - k);
+      g.globalAlpha = a * 0.8;
+      g.drawImage(SPR[Math.min(4, k * 5 | 0)], p.x - s / 2, p.y - s * 0.8, s, s * 1.6);
+    }
+    for (let i = embers.length - 1; i >= 0; i--) {
+      const p = embers[i]; p.t += dt;
+      const k = p.t / p.L;
+      if (k >= 1 || p.y > ch + 6) { embers[i] = embers[embers.length - 1]; embers.pop(); continue; }
+      p.vy += 160 * dt; p.vx *= 1 - 0.8 * dt; p.vy *= 1 - 0.5 * dt;          // gravité + air : elles montent, ralentissent, retombent
+      p.vx += Math.sin(now / 300 + p.ph) * 25 * dt;                           // balancement
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const tw = 0.6 + 0.4 * Math.sin(now / 45 + p.ph * 7), a = (1 - k) * tw;  // scintillement en refroidissant
+      const s = p.s * 7;
+      g.globalAlpha = a * 0.7; g.drawImage(SPR[k < 0.5 ? 2 : 3], p.x - s / 2, p.y - s / 2, s, s);
+      g.globalAlpha = a; g.fillStyle = k < 0.4 ? '#fff2b0' : '#ffa040';
+      g.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+    }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
+  function sync() {
+    const want = !st.classList.contains('hidden') && !document.hidden;
+    if (want && !on) { if (!setup()) return; on = true; last = performance.now(); requestAnimationFrame(step); }
+    else if (!want && on) { on = false; flames = []; embers = []; g.clearRect(0, 0, cv.width, cv.height); }
+  }
+  new MutationObserver(sync).observe(st, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('visibilitychange', sync);
+  new ResizeObserver(() => { if (on) setup(); else sync(); }).observe($('flameT'));
+  requestAnimationFrame(sync);
+  } catch (e) { /* navigateur trop ancien : titre sans animation */ }
+})();
 
 // écran d'accueil : décor
 res = [newRes(), newRes(), newRes(), newRes()];
